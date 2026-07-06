@@ -24,7 +24,7 @@ starts.
 
 **Spec refs:** Identity and manifest, Directory structure, SDK dependencies.
 
-**Status:** In progress.
+**Status:** Scaffold complete; ready for PLW-002.
 
 Progress as of 2026-07-06:
 
@@ -38,7 +38,7 @@ Progress as of 2026-07-06:
 - [x] Added provider and SSG placeholder modules for GitHub and Astro.
 - [x] Added database and migration placeholder structure.
 - [x] Validated the manifest against the platform manifest schema.
-- [ ] Run full plugin typecheck after dependencies are installed or the repo is
+- [x] Run full plugin typecheck after dependencies are installed or the repo is
   linked under the platform plugin workspace.
 
 Create the external plugin repository structure with the SPEC's `manifest.json`,
