@@ -1,0 +1,24 @@
+.page {
+  display: grid;
+  gap: var(--sv-space-5);
+  min-height: 100%;
+}
+
+.preview {
+  min-height: 320px;
+  padding: var(--sv-space-5);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+}
+
+.preview h2 {
+  margin: 0 0 var(--sv-space-3);
+  font-size: var(--sv-font-size-lg);
+}
+
+.preview p {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+}

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "id": "fs.sovereign.plainwrite",
+  "name": "Plainwrite",
+  "version": "0.1.0",
+  "description": "A git-backed content editor for static site generators.",
+  "type": "sovereign",
+  "runtime": "native",
+  "routePrefix": "/plainwrite",
+  "shell": "default",
+  "icon": "icon.svg",
+  "database": "shared",
+  "permissions": [
+    "auth:session",
+    "db:readWrite",
+    "notifications:send",
+    "data:provide",
+    "data:export",
+    "data:import",
+    "activity:write"
+  ],
+  "data": {
+    "provides": [
+      {
+        "contract": "plainwrite.projects",
+        "version": 1,
+        "description": "Plainwrite projects visible to the current user."
+      },
+      {
+        "contract": "plainwrite.content-index",
+        "version": 1,
+        "description": "File metadata and searchable snippets for explicitly shared projects."
+      },
+      {
+        "contract": "plainwrite.drafts",
+        "version": 1,
+        "description": "Draft metadata for the current user; full content is never exposed by default."
+      }
+    ]
+  },
+  "connections": {
+    "providers": [
+      {
+        "id": "git.github",
+        "title": "GitHub",
+        "callbackPath": "/oauth/github/callback",
+        "scopes": ["user"],
+        "config": {
+          "public": {
+            "clientId": {
+              "label": "GitHub OAuth client ID",
+              "env": "GITHUB_CLIENT_ID",
+              "required": false
+            }
+          },
+          "secrets": {
+            "clientSecret": {
+              "label": "GitHub OAuth client secret",
+              "env": "GITHUB_CLIENT_SECRET",
+              "required": false
+            }
+          }
+        }
+      }
+    ]
+  },
+  "repository": "https://github.com/sovereignfs/sovereign-plainwrite",
+  "compatibility": {
+    "minPlatformVersion": "0.18.2"
+  }
+}

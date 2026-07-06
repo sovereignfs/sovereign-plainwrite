@@ -1,0 +1,15 @@
+.page {
+  display: grid;
+  gap: var(--sv-space-5);
+  max-width: 1040px;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-4);
+}
+
+.links a {
+  color: var(--sv-color-accent);
+}
