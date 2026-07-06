@@ -80,6 +80,20 @@ Verification:
 
 **Spec refs:** Data model.
 
+**Status:** Complete.
+
+Progress as of 2026-07-06:
+
+- [x] Added typed schema helpers for all seven `plainwrite_*` tables.
+- [x] Added `tenant_id` to every table.
+- [x] Added `secret_ref`, `connection_id`, status, and sanitized metadata
+  fields for credentials without plaintext token columns.
+- [x] Added required project/user, project/path, project/file/user, and
+  project/collection uniqueness constraints.
+- [x] Added SQLite and Postgres initial Drizzle migrations.
+- [x] Verified SQLite migrations apply cleanly from an empty database.
+- [x] Verified plugin typecheck passes.
+
 Create migrations and typed schema helpers for all seven `plainwrite_*` tables.
 
 Implementation requirements:
