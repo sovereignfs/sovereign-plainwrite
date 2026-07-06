@@ -19,7 +19,6 @@ import {
 } from '../../db/schema';
 import {
   assertProjectRole,
-  hasProjectRole,
   isProjectRole,
   parseGitHubRepositoryUrl,
   projectInputDefaults,
@@ -405,14 +404,6 @@ export async function requireEditAccess(projectId: string) {
 export async function requirePublishAccess(projectId: string) {
   const { db, userId, tenantId } = await getContext();
   return requireProjectRole(db, tenantId, projectId, userId, 'editor');
-}
-
-export function canEdit(role: ProjectRole) {
-  return hasProjectRole(role, 'editor');
-}
-
-export function canManage(role: ProjectRole) {
-  return hasProjectRole(role, 'owner');
 }
 
 function revalidateProject(projectId: string) {

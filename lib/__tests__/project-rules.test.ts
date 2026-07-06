@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertProjectRole,
+  canEditProject,
+  canManageProject,
   defaultMetadataVisibility,
   hasProjectRole,
   normalizePathPrefix,
@@ -86,6 +88,10 @@ describe('project roles', () => {
     expect(hasProjectRole('owner', 'viewer')).toBe(true);
     expect(hasProjectRole('editor', 'viewer')).toBe(true);
     expect(hasProjectRole('viewer', 'editor')).toBe(false);
+    expect(canEditProject('editor')).toBe(true);
+    expect(canEditProject('viewer')).toBe(false);
+    expect(canManageProject('owner')).toBe(true);
+    expect(canManageProject('editor')).toBe(false);
   });
 
   it('throws when a role cannot satisfy the required permission', () => {

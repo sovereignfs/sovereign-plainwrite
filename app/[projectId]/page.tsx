@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState, PageHeader, StatusBadge } from '@sovereignfs/ui';
-import { canEdit, getProject } from '../_lib/actions';
+import { getProject } from '../_lib/actions';
+import { canEditProject } from '../../lib/project-rules';
 import styles from './page.module.css';
 
 interface ProjectPageProps {
@@ -12,7 +13,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
   const project = await getProject(projectId).catch(() => null);
   if (!project) notFound();
-  const userCanEdit = canEdit(project.currentUserRole);
+  const userCanEdit = canEditProject(project.currentUserRole);
 
   return (
     <div className={styles.page}>

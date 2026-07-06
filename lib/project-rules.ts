@@ -79,6 +79,14 @@ export function hasProjectRole(
   return roleRank[actualRole] >= roleRank[requiredRole];
 }
 
+export function canEditProject(role: ProjectRole) {
+  return hasProjectRole(role, 'editor');
+}
+
+export function canManageProject(role: ProjectRole) {
+  return hasProjectRole(role, 'owner');
+}
+
 export function assertProjectRole(
   actualRole: ProjectRole | null | undefined,
   requiredRole: ProjectRole,

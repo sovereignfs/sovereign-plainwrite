@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import { Badge, PageHeader, StatusBadge } from '@sovereignfs/ui';
 import {
   archiveProject,
-  canManage,
   getProject,
   hardDeleteProject,
   inviteProjectMember,
@@ -10,6 +9,7 @@ import {
   restoreProject,
   updateProjectSettings,
 } from '../../_lib/actions';
+import { canManageProject } from '../../../lib/project-rules';
 import styles from './settings.module.css';
 
 interface SettingsPageProps {
@@ -20,7 +20,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
   const { projectId } = await params;
   const project = await getProject(projectId).catch(() => null);
   if (!project) notFound();
-  const userCanManage = canManage(project.currentUserRole);
+  const userCanManage = canManageProject(project.currentUserRole);
 
   return (
     <div className={styles.page}>
