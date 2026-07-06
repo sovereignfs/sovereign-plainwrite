@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { EmptyState, PageHeader, StatusBadge } from '@sovereignfs/ui';
 import { getProject } from '../_lib/actions';
-import { canEditProject } from '../../lib/project-rules';
+import { canEditProject } from '../_lib/project-rules';
 import styles from './page.module.css';
 
 interface ProjectPageProps {

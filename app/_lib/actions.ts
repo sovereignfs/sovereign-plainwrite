@@ -16,14 +16,14 @@ import {
   plainwritePublishEvents,
   type PlainwriteProject,
   type PlainwriteProjectMember,
-} from '../../db/schema';
+} from '../_db/schema';
 import {
   assertProjectRole,
   isProjectRole,
   parseGitHubRepositoryUrl,
   projectInputDefaults,
   type ProjectRole,
-} from '../../lib/project-rules';
+} from './project-rules';
 
 // The SDK intentionally returns an opaque dialect-agnostic DB client.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

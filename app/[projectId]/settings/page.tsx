@@ -9,7 +9,7 @@ import {
   restoreProject,
   updateProjectSettings,
 } from '../../_lib/actions';
-import { canManageProject } from '../../../lib/project-rules';
+import { canManageProject } from '../../_lib/project-rules';
 import styles from './settings.module.css';
 
 interface SettingsPageProps {
