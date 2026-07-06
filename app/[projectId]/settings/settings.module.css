@@ -1,6 +1,6 @@
 .page {
   display: grid;
-  gap: var(--sv-space-6);
+  gap: var(--sv-space-5);
   max-width: 1040px;
 }
 
@@ -9,35 +9,59 @@
   gap: var(--sv-space-4);
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
-  background: var(--sv-color-surface);
   padding: var(--sv-space-5);
 }
 
 .panel h2,
-.project h2,
-.project h3,
-.projectList h2 {
+.member p {
   margin: 0;
 }
 
-.form {
+.panelHeader,
+.member,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.form,
+.members,
+.inlineForm,
+.deleteForm {
   display: grid;
   gap: var(--sv-space-4);
 }
 
-.form label {
+.grid,
+.inlineForm {
+  display: grid;
+  gap: var(--sv-space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form label,
+.inlineForm label,
+.deleteForm label {
   display: grid;
   gap: var(--sv-space-2);
 }
 
-.form span {
+.form span,
+.inlineForm span,
+.deleteForm span,
+.member p {
   color: var(--sv-color-text-secondary);
   font-size: var(--sv-font-size-sm);
 }
 
 .form input,
 .form select,
-.form textarea {
+.form textarea,
+.inlineForm input,
+.inlineForm select,
+.deleteForm input {
   width: 100%;
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-sm);
@@ -45,12 +69,6 @@
   color: var(--sv-color-text-primary);
   font: inherit;
   padding: var(--sv-space-2) var(--sv-space-3);
-}
-
-.grid {
-  display: grid;
-  gap: var(--sv-space-4);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .checkbox {
@@ -63,8 +81,16 @@
   width: auto;
 }
 
+.member {
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  padding: var(--sv-space-3);
+}
+
 .form button,
-.inlineButton {
+.inlineForm button,
+.member button,
+.actions button {
   justify-self: start;
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-sm);
@@ -75,35 +101,18 @@
   padding: var(--sv-space-2) var(--sv-space-4);
 }
 
-.projectList {
-  display: grid;
-  gap: var(--sv-space-3);
-}
-
-.project {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sv-space-4);
-  border: 1px solid var(--sv-color-border);
-  border-radius: var(--sv-radius-md);
-  color: var(--sv-color-text-primary);
-  padding: var(--sv-space-4);
-  text-decoration: none;
-}
-
-.project p {
-  margin: var(--sv-space-1) 0 0;
-  color: var(--sv-color-text-secondary);
+.actions {
+  align-items: flex-start;
 }
 
 @media (max-width: 720px) {
   .grid,
-  .project {
+  .inlineForm {
     grid-template-columns: 1fr;
   }
 
-  .project {
+  .member,
+  .actions {
     align-items: flex-start;
     flex-direction: column;
   }

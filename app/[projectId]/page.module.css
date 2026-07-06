@@ -13,3 +13,39 @@
 .links a {
   color: var(--sv-color-accent);
 }
+
+.summary {
+  display: grid;
+  gap: var(--sv-space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.summary div {
+  display: grid;
+  gap: var(--sv-space-1);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-4);
+}
+
+.summary span {
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.summary strong {
+  color: var(--sv-color-text-primary);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+@media (max-width: 920px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+}

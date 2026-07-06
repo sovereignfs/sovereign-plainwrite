@@ -128,6 +128,25 @@ Verification:
 
 **Spec refs:** PLW-01 through PLW-05, Access control.
 
+**Status:** Complete.
+
+Progress as of 2026-07-06:
+
+- [x] Added project create, list, detail, settings update, archive, restore, and
+  hard-delete server actions.
+- [x] Added GitHub repository URL parsing and validation into `repo_owner` and
+  `repo_name`.
+- [x] Insert project creator membership as `owner`.
+- [x] Added owner, editor, and viewer role helpers for current and future edit
+  and publish flows.
+- [x] Added owner-only member invite/update/remove actions with last-owner
+  self-removal protection.
+- [x] Hid archived projects from the active listing while keeping a separate
+  archived section for restore/delete.
+- [x] Added project create/detail/settings UI forms.
+- [x] Added unit tests for repository parsing, default input normalization, and
+  role authorization.
+
 Implement project creation, settings, archive, membership, and role checks.
 
 Implementation requirements:

@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { EmptyState, PageHeader, StatusBadge } from '@sovereignfs/ui';
+import { canEdit, getProject } from '../_lib/actions';
 import styles from './page.module.css';
 
 interface ProjectPageProps {
@@ -8,18 +10,45 @@ interface ProjectPageProps {
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
+  const project = await getProject(projectId).catch(() => null);
+  if (!project) notFound();
+  const userCanEdit = canEdit(project.currentUserRole);
 
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Project files"
-        description={`Project ${projectId}`}
-        action={<StatusBadge status="unmodified">Scaffold</StatusBadge>}
+        title={project.name}
+        description={`${project.repoOwner}/${project.repoName} · ${project.branch} · ${project.pathPrefix}`}
+        action={
+          <StatusBadge status={project.archivedAt ? 'conflict' : 'unmodified'}>
+            {project.currentUserRole}
+          </StatusBadge>
+        }
       />
       <div className={styles.links}>
         <Link href={`/plainwrite/${projectId}/settings`}>Settings</Link>
-        <Link href={`/plainwrite/${projectId}/editor/src/content/example.md`}>Editor</Link>
+        {userCanEdit ? (
+          <Link href={`/plainwrite/${projectId}/editor/src/content/example.md`}>Editor</Link>
+        ) : null}
       </div>
+      <section className={styles.summary} aria-label="Project summary">
+        <div>
+          <span>Provider</span>
+          <strong>{project.provider}</strong>
+        </div>
+        <div>
+          <span>SSG</span>
+          <strong>{project.ssgType}</strong>
+        </div>
+        <div>
+          <span>Visibility</span>
+          <strong>{project.isPrivate ? 'Private' : 'Public'}</strong>
+        </div>
+        <div>
+          <span>Metadata</span>
+          <strong>{project.metadataVisibility}</strong>
+        </div>
+      </section>
       <EmptyState
         icon="package"
         heading="File sync is not wired yet"
