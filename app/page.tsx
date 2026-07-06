@@ -34,8 +34,7 @@ export default async function ProjectsPage() {
             <input
               name="repositoryUrl"
               required
-              placeholder="https://github.com/acme/site"
-              type="url"
+              placeholder="https://github.com/acme/site or git@github.com:acme/site.git"
             />
           </label>
           <label>

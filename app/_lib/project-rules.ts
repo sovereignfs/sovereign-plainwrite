@@ -1,8 +1,10 @@
 export const PROJECT_ROLES = ['owner', 'editor', 'viewer'] as const;
+export const PROJECT_PROVIDERS = ['github'] as const;
 export const SSG_TYPES = ['astro'] as const;
 export const METADATA_VISIBILITY = ['members_with_credentials', 'all_members'] as const;
 
 export type ProjectRole = (typeof PROJECT_ROLES)[number];
+export type ProjectProvider = (typeof PROJECT_PROVIDERS)[number];
 export type SsgType = (typeof SSG_TYPES)[number];
 export type MetadataVisibility = (typeof METADATA_VISIBILITY)[number];
 

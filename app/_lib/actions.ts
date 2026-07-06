@@ -29,16 +29,16 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = BaseSQLiteDatabase<'async', any, any>;
 
-export interface ProjectSummary extends PlainwriteProject {
+interface ProjectSummary extends PlainwriteProject {
   currentUserRole: ProjectRole;
 }
 
-export interface ProjectMemberSummary extends PlainwriteProjectMember {
+interface ProjectMemberSummary extends PlainwriteProjectMember {
   displayName: string | null;
   email: string | null;
 }
 
-export interface ProjectDetail extends ProjectSummary {
+interface ProjectDetail extends ProjectSummary {
   members: ProjectMemberSummary[];
 }
 
@@ -339,6 +339,14 @@ export async function inviteProjectMember(projectId: string, formData: FormData)
     .limit(1);
 
   if (existing.length) {
+    const existingMember = existing[0]!;
+    if (existingMember.role === 'owner' && role !== 'owner') {
+      const ownerCount = await countProjectOwners(db, tenantId, projectId);
+      if (ownerCount <= 1) {
+        throw new Error('The last owner cannot be demoted.');
+      }
+    }
+
     await db
       .update(plainwriteProjectMembers)
       .set({ role })
@@ -394,6 +402,20 @@ export async function removeProjectMember(projectId: string, memberUserId: strin
     );
 
   revalidateProject(projectId);
+}
+
+async function countProjectOwners(db: Db, tenantId: string, projectId: string) {
+  const owners = await db
+    .select({ userId: plainwriteProjectMembers.userId })
+    .from(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.projectId, projectId),
+        eq(plainwriteProjectMembers.role, 'owner'),
+      ),
+    );
+  return owners.length;
 }
 
 export async function requireEditAccess(projectId: string) {

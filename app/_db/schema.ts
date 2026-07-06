@@ -145,7 +145,27 @@ export const plainwritePublishEvents = sqliteTable('plainwrite_publish_events', 
   createdAt: integer('created_at').notNull(),
 });
 
+export const plainwriteTables = {
+  plainwriteProjects,
+  plainwriteProjectMembers,
+  plainwriteCredentials,
+  plainwriteFileCache,
+  plainwriteDrafts,
+  plainwriteCollectionSchemas,
+  plainwritePublishEvents,
+};
+
 export type PlainwriteProject = InferSelectModel<typeof plainwriteProjects>;
 export type PlainwriteProjectMember = InferSelectModel<typeof plainwriteProjectMembers>;
+export type PlainwriteCredential = InferSelectModel<typeof plainwriteCredentials>;
+export type PlainwriteFileCacheEntry = InferSelectModel<typeof plainwriteFileCache>;
+export type PlainwriteDraft = InferSelectModel<typeof plainwriteDrafts>;
+export type PlainwriteCollectionSchema = InferSelectModel<typeof plainwriteCollectionSchemas>;
+export type PlainwritePublishEvent = InferSelectModel<typeof plainwritePublishEvents>;
 export type NewPlainwriteProject = InferInsertModel<typeof plainwriteProjects>;
 export type NewPlainwriteProjectMember = InferInsertModel<typeof plainwriteProjectMembers>;
+export type NewPlainwriteCredential = InferInsertModel<typeof plainwriteCredentials>;
+export type NewPlainwriteFileCacheEntry = InferInsertModel<typeof plainwriteFileCache>;
+export type NewPlainwriteDraft = InferInsertModel<typeof plainwriteDrafts>;
+export type NewPlainwriteCollectionSchema = InferInsertModel<typeof plainwriteCollectionSchemas>;
+export type NewPlainwritePublishEvent = InferInsertModel<typeof plainwritePublishEvents>;
