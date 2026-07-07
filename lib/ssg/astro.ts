@@ -20,7 +20,8 @@ export class AstroAdapter implements SsgAdapter {
         collection: this.inferCollection(entry.path, prefix),
         filename: entry.path.split('/').at(-1) ?? entry.path,
         sha: entry.sha,
-      }));
+      }))
+      .sort((a, b) => a.path.localeCompare(b.path));
   }
 
   inferCollection(filePath: string, pathPrefix: string): string | null {

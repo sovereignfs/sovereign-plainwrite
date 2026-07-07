@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Badge, EmptyState, PageHeader, StatusBadge } from '@sovereignfs/ui';
-import { createProject, listProjects } from './_lib/actions';
+import { NewProjectDialog } from './_components/NewProjectDialog';
+import { listProjects } from './_lib/actions';
 import styles from './page.module.css';
 
 export default async function ProjectsPage() {
@@ -16,62 +17,14 @@ export default async function ProjectsPage() {
         title="Projects"
         description="Connect static site repositories and manage Markdown content."
         action={
-          <Badge variant="status" status="neutral">
-            GitHub + Astro
-          </Badge>
+          <div className={styles.headerActions}>
+            <Badge variant="status" status="neutral">
+              GitHub + Astro
+            </Badge>
+            <NewProjectDialog />
+          </div>
         }
       />
-
-      <section className={styles.panel} aria-labelledby="create-project">
-        <h2 id="create-project">New project</h2>
-        <form action={createProject} className={styles.form}>
-          <label>
-            <span>Name</span>
-            <input name="name" required placeholder="Company blog" />
-          </label>
-          <label>
-            <span>Repository URL</span>
-            <input
-              name="repositoryUrl"
-              required
-              placeholder="https://github.com/acme/site or git@github.com:acme/site.git"
-            />
-          </label>
-          <label>
-            <span>Description</span>
-            <textarea name="description" rows={2} />
-          </label>
-          <div className={styles.grid}>
-            <label>
-              <span>Branch</span>
-              <input name="branch" defaultValue="main" />
-            </label>
-            <label>
-              <span>Path prefix</span>
-              <input name="pathPrefix" defaultValue="src/content" />
-            </label>
-            <label>
-              <span>SSG</span>
-              <select name="ssgType" defaultValue="astro">
-                <option value="astro">Astro</option>
-              </select>
-            </label>
-            <label>
-              <span>Metadata</span>
-              <select name="metadataVisibility" defaultValue="">
-                <option value="">Default by repository privacy</option>
-                <option value="members_with_credentials">Members with credentials</option>
-                <option value="all_members">All members</option>
-              </select>
-            </label>
-          </div>
-          <label className={styles.checkbox}>
-            <input name="isPrivate" type="checkbox" />
-            <span>Private repository</span>
-          </label>
-          <button type="submit">Create project</button>
-        </form>
-      </section>
 
       {projects.length === 0 ? (
         <EmptyState

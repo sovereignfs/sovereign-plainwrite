@@ -17,6 +17,18 @@
   margin: 0;
 }
 
+.panelDescription,
+.helpText,
+.errorText {
+  margin: var(--sv-space-1) 0 0;
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.errorText {
+  color: var(--sv-color-error-text);
+}
+
 .panelHeader,
 .member,
 .actions {
@@ -29,7 +41,8 @@
 .form,
 .members,
 .inlineForm,
-.deleteForm {
+.deleteForm,
+.credentialForms {
   display: grid;
   gap: var(--sv-space-4);
 }
@@ -71,6 +84,28 @@
   padding: var(--sv-space-2) var(--sv-space-3);
 }
 
+.credentialDetails {
+  display: grid;
+  gap: var(--sv-space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.credentialDetails div {
+  display: grid;
+  gap: var(--sv-space-1);
+}
+
+.credentialDetails dt {
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.credentialDetails dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .checkbox {
   align-items: center;
   display: flex !important;
@@ -90,7 +125,8 @@
 .form button,
 .inlineForm button,
 .member button,
-.actions button {
+.actions button,
+.secondaryButton {
   justify-self: start;
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-sm);
@@ -101,13 +137,19 @@
   padding: var(--sv-space-2) var(--sv-space-4);
 }
 
+.secondaryButton {
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+}
+
 .actions {
   align-items: flex-start;
 }
 
 @media (max-width: 720px) {
   .grid,
-  .inlineForm {
+  .inlineForm,
+  .credentialDetails {
     grid-template-columns: 1fr;
   }
 

@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { Badge, PageHeader, StatusBadge } from '@sovereignfs/ui';
 import {
   archiveProject,
+  connectGitHubPat,
+  disconnectGitHubCredential,
   getProject,
   hardDeleteProject,
   inviteProjectMember,
@@ -9,7 +11,7 @@ import {
   restoreProject,
   updateProjectSettings,
 } from '../../_lib/actions';
-import { canManageProject } from '../../_lib/project-rules';
+import { canEditProject, canManageProject } from '../../_lib/project-rules';
 import styles from './settings.module.css';
 
 interface SettingsPageProps {
@@ -20,6 +22,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
   const { projectId } = await params;
   const project = await getProject(projectId).catch(() => null);
   if (!project) notFound();
+  const userCanEdit = canEditProject(project.currentUserRole);
   const userCanManage = canManageProject(project.currentUserRole);
 
   return (
@@ -90,6 +93,80 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
         </form>
       </section>
 
+      <section className={styles.panel} aria-labelledby="github-credential">
+        <div className={styles.panelHeader}>
+          <div>
+            <h2 id="github-credential">GitHub credential</h2>
+            <p className={styles.panelDescription}>
+              Connect a personal access token for sync and publishing as your GitHub user.
+            </p>
+          </div>
+          <StatusBadge status={project.credential?.status === 'connected' ? 'synced' : 'warning'}>
+            {project.credential?.status === 'connected' ? 'Connected' : 'Not connected'}
+          </StatusBadge>
+        </div>
+
+        {project.credential ? (
+          <dl className={styles.credentialDetails}>
+            <div>
+              <dt>Provider</dt>
+              <dd>GitHub</dd>
+            </div>
+            <div>
+              <dt>Account</dt>
+              <dd>{project.credential.providerLogin ?? 'Unknown'}</dd>
+            </div>
+            <div>
+              <dt>Auth type</dt>
+              <dd>{project.credential.authType.toUpperCase()}</dd>
+            </div>
+            <div>
+              <dt>Last updated</dt>
+              <dd>{formatTimestamp(project.credential.updatedAt)}</dd>
+            </div>
+          </dl>
+        ) : null}
+
+        {project.credential?.lastError ? (
+          <p className={styles.errorText}>{project.credential.lastError}</p>
+        ) : null}
+
+        {userCanEdit ? (
+          <div className={styles.credentialForms}>
+            <form action={connectGitHubPat.bind(null, project.id)} className={styles.form}>
+              <label>
+                <span>Personal access token</span>
+                <input
+                  name="token"
+                  type="password"
+                  required
+                  autoComplete="off"
+                  placeholder="github_pat_..."
+                />
+              </label>
+              <p className={styles.helpText}>
+                Use a fine-grained token with contents read/write access for
+                {` ${project.repoOwner}/${project.repoName}`}. The token is stored in the platform
+                secret vault and is never saved in Plainwrite tables.
+              </p>
+              <button type="submit">
+                {project.credential?.status === 'connected' ? 'Reconnect token' : 'Connect token'}
+              </button>
+            </form>
+
+            {project.credential?.status === 'connected' ? (
+              <form action={disconnectGitHubCredential.bind(null, project.id)}>
+                <button type="submit" className={styles.secondaryButton}>
+                  Disconnect
+                </button>
+              </form>
+            ) : null}
+          </div>
+        ) : (
+          <p className={styles.helpText}>Viewers cannot connect publishing credentials.</p>
+        )}
+      </section>
+
       <section className={styles.panel} aria-labelledby="members">
         <div className={styles.panelHeader}>
           <h2 id="members">Members</h2>
@@ -155,4 +232,11 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
       ) : null}
     </div>
   );
+}
+
+function formatTimestamp(value: number) {
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value * 1000));
 }
