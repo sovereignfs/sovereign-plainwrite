@@ -5,6 +5,7 @@
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {
+    "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -18,8 +19,10 @@
   },
   "devDependencies": {
     "@sovereignfs/tsconfig": "workspace:*",
+    "@types/node": "^22.10.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.8"
   }
 }

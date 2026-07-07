@@ -1,4 +1,15 @@
-import { CodeTextarea, PageHeader, SplitPane, StatusBadge } from '@sovereignfs/ui';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { PageHeader, StatusBadge } from '@sovereignfs/ui';
+import { MarkdownEditor } from '../../../_components/MarkdownEditor';
+import {
+  commitDraft,
+  discardDraft,
+  getEditorState,
+  publishCommittedDraft,
+  saveDraft,
+} from '../../../_lib/actions';
+import { canEditProject } from '../../../_lib/project-rules';
 import styles from './page.module.css';
 
 interface EditorPageProps {
@@ -8,26 +19,47 @@ interface EditorPageProps {
 export default async function EditorPage({ params }: EditorPageProps) {
   const { projectId, filePath } = await params;
   const path = filePath.join('/');
-  const sample = `---\ntitle: Untitled\n---\n\nStart writing here.\n`;
+  const editor = await getEditorState(projectId, path).catch(() => null);
+  if (!editor) notFound();
+  const userCanEdit = canEditProject(editor.currentUserRole);
+  const repositoryLabel = `${editor.project.repoOwner}/${editor.project.repoName}`;
 
   return (
     <div className={styles.page}>
       <PageHeader
         title={path}
-        description={`Draft editor for ${projectId}`}
-        action={<StatusBadge status="draft">Draft scaffold</StatusBadge>}
+        description={`${editor.project.name} · ${repositoryLabel} · ${editor.project.branch}`}
+        action={<StatusBadge status={editor.status}>{formatEditorStatus(editor.status)}</StatusBadge>}
       />
-      <SplitPane
-        primaryLabel="Markdown editor"
-        secondaryLabel="Preview"
-        primary={<CodeTextarea aria-label="Markdown editor" defaultValue={sample} />}
-        secondary={
-          <section className={styles.preview} aria-label="Preview placeholder">
-            <h2>Preview</h2>
-            <p>Sanitized Markdown preview lands in PLW-006.</p>
-          </section>
-        }
+
+      <section className={styles.toolbar} aria-label="Editor actions">
+        <div>
+          <p className={styles.eyebrow}>Base revision</p>
+          <p>{editor.baseSha ?? 'New file'}</p>
+        </div>
+        <div className={styles.toolbarActions}>
+          <Link href={`/plainwrite/${projectId}`}>Project dashboard</Link>
+        </div>
+      </section>
+
+      <MarkdownEditor
+        path={path}
+        content={editor.content}
+        baseSha={editor.baseSha}
+        status={editor.status}
+        commitMessage={editor.commitMessage}
+        userCanEdit={userCanEdit}
+        saveAction={saveDraft.bind(null, projectId, path)}
+        commitAction={commitDraft.bind(null, projectId, path)}
+        publishAction={publishCommittedDraft.bind(null, projectId, path)}
+        discardAction={discardDraft.bind(null, projectId, path)}
       />
     </div>
   );
+}
+
+function formatEditorStatus(status: string) {
+  if (status === 'unmodified') return 'Unmodified';
+  if (status === 'committed') return 'Ready to commit';
+  return 'Draft';
 }

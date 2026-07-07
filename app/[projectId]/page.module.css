@@ -1,15 +1,340 @@
 .page {
   display: grid;
-  gap: var(--sv-space-5);
+  gap: var(--sv-space-6);
   max-width: 1040px;
 }
 
-.links {
+.heroGrid {
+  display: grid;
+  gap: var(--sv-space-4);
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
+}
+
+.primaryCard,
+.statusCard {
+  display: grid;
+  align-content: start;
+  gap: var(--sv-space-5);
+}
+
+.cardHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--sv-space-3);
+  justify-content: space-between;
+}
+
+.cardHeader h2,
+.actionsPanel h2,
+.cardLink h2,
+.grid h2 {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+}
+
+.eyebrow {
+  margin: 0 0 var(--sv-space-1);
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.details {
+  display: grid;
+  gap: var(--sv-space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.details div {
+  display: grid;
+  gap: var(--sv-space-1);
+}
+
+.details dt {
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.details dd {
+  margin: 0;
+  color: var(--sv-color-text-primary);
+  font-weight: var(--sv-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.checklist {
+  display: grid;
+  gap: var(--sv-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checklist li {
+  align-items: center;
+  display: flex;
+  gap: var(--sv-space-2);
+  color: var(--sv-color-text-secondary);
+}
+
+.doneDot,
+.pendingDot {
+  border-radius: 999px;
+  flex: 0 0 10px;
+  height: 10px;
+  width: 10px;
+}
+
+.doneDot {
+  background: var(--sv-color-success-text);
+}
+
+.pendingDot {
+  background: var(--sv-color-warning-text);
+}
+
+.actionsPanel {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-4);
+}
+
+.newFilePanel {
+  display: grid;
+  gap: var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-raised);
+  padding: var(--sv-space-5);
+}
+
+.newFilePanel h2 {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+}
+
+.actionsPanel p,
+.newFilePanel p,
+.grid p {
+  margin: var(--sv-space-1) 0 0;
+  color: var(--sv-color-text-secondary);
+}
+
+.newFileForm {
+  align-items: end;
+  display: grid;
+  gap: var(--sv-space-3);
+  grid-template-columns: minmax(160px, 0.8fr) minmax(220px, 1fr) auto;
+}
+
+.newFileForm label {
+  display: grid;
+  gap: var(--sv-space-2);
+  color: var(--sv-color-text-primary);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.newFileForm input {
+  min-width: 0;
+  border: 1px solid var(--sv-color-border-strong);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+}
+
+.actions {
   display: flex;
   flex-wrap: wrap;
+  gap: var(--sv-space-2);
+}
+
+.actions a,
+.actions button,
+.newFileForm button {
+  border: 1px solid var(--sv-color-border-strong);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+  text-decoration: none;
+}
+
+.actions a:hover,
+.actions button:hover,
+.newFileForm button:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
+.actions form:first-child button,
+.actions a:first-child,
+.newFileForm button {
+  background: var(--sv-color-accent);
+  border-color: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+}
+
+.contentPanel {
+  display: grid;
+  gap: var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-raised);
+  padding: var(--sv-space-5);
+}
+
+.contentPanel p {
+  margin: var(--sv-space-1) 0 0;
+  color: var(--sv-color-text-secondary);
+}
+
+.collections {
+  display: grid;
   gap: var(--sv-space-4);
 }
 
-.links a {
-  color: var(--sv-color-accent);
+.collection {
+  display: grid;
+  gap: var(--sv-space-2);
+}
+
+.collection h3 {
+  margin: 0;
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.fileList {
+  display: grid;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  overflow: hidden;
+}
+
+.fileRow {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  color: var(--sv-color-text-primary);
+  padding: var(--sv-space-3);
+  text-decoration: none;
+}
+
+.fileRow + .fileRow {
+  border-top: 1px solid var(--sv-color-border);
+}
+
+.fileRow:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
+.fileRow span:first-child {
+  overflow-wrap: anywhere;
+}
+
+.eventList {
+  display: grid;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  overflow: hidden;
+}
+
+.eventRow {
+  align-items: flex-start;
+  display: grid;
+  gap: var(--sv-space-4);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: var(--sv-space-3);
+}
+
+.eventRow + .eventRow {
+  border-top: 1px solid var(--sv-color-border);
+}
+
+.eventRow h3 {
+  margin: 0;
+  font-size: var(--sv-font-size-md);
+}
+
+.eventRow p {
+  overflow-wrap: anywhere;
+}
+
+.eventMeta {
+  align-items: flex-end;
+  display: grid;
+  gap: var(--sv-space-2);
+  justify-items: end;
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.eventMeta code {
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+  font-family: var(--sv-font-family-mono);
+  padding: 0 var(--sv-space-1);
+}
+
+.emptyText {
+  border: 1px dashed var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-4);
+}
+
+.grid {
+  display: grid;
+  gap: var(--sv-space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid > div,
+.cardLink > div {
+  min-height: 150px;
+}
+
+.cardLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (max-width: 920px) {
+  .heroGrid,
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionsPanel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .newFileForm {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .eventRow {
+    grid-template-columns: 1fr;
+  }
+
+  .eventMeta {
+    align-items: flex-start;
+    justify-items: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .details {
+    grid-template-columns: 1fr;
+  }
 }

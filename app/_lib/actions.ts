@@ -1,0 +1,1291 @@
+'use server';
+
+import { randomUUID } from 'node:crypto';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { sdk } from '@sovereignfs/sdk';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import {
+  plainwriteCollectionSchemas,
+  plainwriteCredentials,
+  plainwriteDrafts,
+  plainwriteFileCache,
+  plainwriteProjectMembers,
+  plainwriteProjects,
+  plainwritePublishEvents,
+  type PlainwriteCredential,
+  type PlainwriteDraft,
+  type PlainwriteFileCacheEntry,
+  type PlainwriteProject,
+  type PlainwriteProjectMember,
+} from '../_db/schema';
+import { defaultMarkdownTemplate, type ContentFile } from './content-rules';
+import { buildContentFilePath } from './editor-rules';
+import { getGitProvider } from './git-providers';
+import {
+  assertProjectRole,
+  isProjectRole,
+  parseGitHubRepositoryUrl,
+  projectInputDefaults,
+  type ProjectRole,
+} from './project-rules';
+import { getSsgAdapter } from './ssg-adapters';
+
+// The SDK intentionally returns an opaque dialect-agnostic DB client.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Db = BaseSQLiteDatabase<'async', any, any>;
+const CONTENT_SYNC_TTL_SECONDS = 300;
+
+interface ProjectSummary extends PlainwriteProject {
+  currentUserRole: ProjectRole;
+}
+
+interface ProjectMemberSummary extends PlainwriteProjectMember {
+  displayName: string | null;
+  email: string | null;
+}
+
+interface CredentialSummary {
+  provider: string;
+  authType: string;
+  providerLogin: string | null;
+  status: string;
+  lastError: string | null;
+  tokenExpiresAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface ProjectDetail extends ProjectSummary {
+  members: ProjectMemberSummary[];
+  credential: CredentialSummary | null;
+}
+
+interface ContentFileSummary extends ContentFile {
+  status: 'unmodified' | 'draft' | 'committed' | 'pending-delete' | 'conflict';
+  lastSyncedAt: number;
+}
+
+interface EditorState {
+  project: Pick<PlainwriteProject, 'id' | 'name' | 'repoOwner' | 'repoName' | 'branch' | 'pathPrefix'>;
+  path: string;
+  content: string;
+  baseSha: string | null;
+  status: 'unmodified' | 'draft' | 'committed';
+  commitMessage: string | null;
+  currentUserRole: ProjectRole;
+}
+
+interface PublishEventSummary {
+  id: string;
+  message: string;
+  files: string[];
+  status: string;
+  commitSha: string | null;
+  errorCode: string | null;
+  errorSummary: string | null;
+  createdAt: number;
+}
+
+interface ProjectContext {
+  db: Db;
+  userId: string;
+  tenantId: string;
+}
+
+function now() {
+  return Math.floor(Date.now() / 1000);
+}
+
+async function getContext(): Promise<ProjectContext> {
+  const session = await sdk.auth.requireSession();
+  const db = (await sdk.db.getClient()) as Db;
+  return { db, userId: session.user.id, tenantId: session.user.tenantId };
+}
+
+function formString(formData: FormData, key: string, fallback = '') {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value.trim() : fallback;
+}
+
+function formRawString(formData: FormData, key: string, fallback = '') {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value : fallback;
+}
+
+function formBoolean(formData: FormData, key: string) {
+  return formData.get(key) === 'on';
+}
+
+async function getMembership(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  userId: string,
+): Promise<ProjectRole | null> {
+  const rows = await db
+    .select({ role: plainwriteProjectMembers.role })
+    .from(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.projectId, projectId),
+        eq(plainwriteProjectMembers.userId, userId),
+      ),
+    )
+    .limit(1);
+  const role = rows[0]?.role;
+  return role && isProjectRole(role) ? role : null;
+}
+
+async function requireProjectRole(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  userId: string,
+  requiredRole: ProjectRole,
+): Promise<ProjectRole> {
+  const role = await getMembership(db, tenantId, projectId, userId);
+  assertProjectRole(role, requiredRole);
+  return role;
+}
+
+export async function listProjects(options: { includeArchived?: boolean } = {}) {
+  const { db, userId, tenantId } = await getContext();
+  const memberships = await db
+    .select()
+    .from(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.userId, userId),
+      ),
+    );
+
+  const projectIds = memberships.map((membership) => membership.projectId);
+  if (projectIds.length === 0) return [];
+
+  const conditions = [
+    eq(plainwriteProjects.tenantId, tenantId),
+    inArray(plainwriteProjects.id, projectIds),
+  ];
+  if (!options.includeArchived) conditions.push(isNull(plainwriteProjects.archivedAt));
+
+  const projects = await db
+    .select()
+    .from(plainwriteProjects)
+    .where(and(...conditions))
+    .orderBy(asc(plainwriteProjects.name));
+
+  const roleByProjectId = new Map(
+    memberships
+      .filter((membership) => isProjectRole(membership.role))
+      .map((membership) => [membership.projectId, membership.role as ProjectRole]),
+  );
+
+  return projects.flatMap((project): ProjectSummary[] => {
+    const currentUserRole = roleByProjectId.get(project.id);
+    return currentUserRole ? [{ ...project, currentUserRole }] : [];
+  });
+}
+
+export async function getProject(projectId: string): Promise<ProjectDetail> {
+  const { db, userId, tenantId } = await getContext();
+  const currentUserRole = await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
+  const rows = await db
+    .select()
+    .from(plainwriteProjects)
+    .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)))
+    .limit(1);
+  const project = rows[0];
+  if (!project) throw new Error('Project not found');
+
+  const memberRows = await db
+    .select()
+    .from(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.projectId, projectId),
+      ),
+    )
+    .orderBy(asc(plainwriteProjectMembers.joinedAt));
+
+  let directoryRows: Awaited<ReturnType<typeof sdk.directory.resolveUsers>> = [];
+  try {
+    directoryRows = await sdk.directory.resolveUsers({
+      ids: memberRows.map((member) => member.userId),
+    });
+  } catch {
+    directoryRows = [];
+  }
+  const userById = new Map(directoryRows.map((user) => [user.id, user]));
+  const credential = await getCredentialRow(db, tenantId, projectId, userId);
+
+  return {
+    ...project,
+    credential: credential
+      ? {
+          provider: credential.provider,
+          authType: credential.authType,
+          providerLogin: credential.providerLogin,
+          status: credential.status,
+          lastError: credential.lastError,
+          tokenExpiresAt: credential.tokenExpiresAt,
+          createdAt: credential.createdAt,
+          updatedAt: credential.updatedAt,
+        }
+      : null,
+    currentUserRole,
+    members: memberRows.map((member) => {
+      const user = userById.get(member.userId);
+      return {
+        ...member,
+        displayName: user?.name ?? null,
+        email: user?.email ?? null,
+      };
+    }),
+  };
+}
+
+export async function getProjectNavigation(projectId: string) {
+  const project = await getProject(projectId);
+  return {
+    id: project.id,
+    name: project.name,
+    repoOwner: project.repoOwner,
+    repoName: project.repoName,
+    archivedAt: project.archivedAt,
+    currentUserRole: project.currentUserRole,
+  };
+}
+
+export async function listPublishEvents(projectId: string): Promise<PublishEventSummary[]> {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
+  const rows = await db
+    .select()
+    .from(plainwritePublishEvents)
+    .where(
+      and(
+        eq(plainwritePublishEvents.tenantId, tenantId),
+        eq(plainwritePublishEvents.projectId, projectId),
+      ),
+    )
+    .orderBy(desc(plainwritePublishEvents.createdAt))
+    .limit(8);
+
+  return rows.map((row) => ({
+    id: row.id,
+    message: row.message,
+    files: parsePublishedFiles(row.files),
+    status: row.status,
+    commitSha: row.commitSha,
+    errorCode: row.errorCode,
+    errorSummary: row.errorSummary,
+    createdAt: row.createdAt,
+  }));
+}
+
+export async function listContentFiles(projectId: string): Promise<ContentFileSummary[]> {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (!canViewCachedMetadata(project, credential.token)) return [];
+
+  let files = await db
+    .select()
+    .from(plainwriteFileCache)
+    .where(
+      and(eq(plainwriteFileCache.tenantId, tenantId), eq(plainwriteFileCache.projectId, projectId)),
+    )
+    .orderBy(asc(plainwriteFileCache.collection), asc(plainwriteFileCache.path));
+
+  if (shouldRefreshContentCache(files.map((file) => file.lastSyncedAt))) {
+    try {
+      if (!project.isPrivate || credential.token) {
+        await refreshProjectContentCache(db, tenantId, project, credential.token);
+        files = await db
+          .select()
+          .from(plainwriteFileCache)
+          .where(
+            and(
+              eq(plainwriteFileCache.tenantId, tenantId),
+              eq(plainwriteFileCache.projectId, projectId),
+            ),
+          )
+          .orderBy(asc(plainwriteFileCache.collection), asc(plainwriteFileCache.path));
+      }
+    } catch {
+      // Automatic refresh should not block opening a project dashboard.
+    }
+  }
+
+  const drafts = await db
+    .select()
+    .from(plainwriteDrafts)
+    .where(
+      and(
+        eq(plainwriteDrafts.tenantId, tenantId),
+        eq(plainwriteDrafts.projectId, projectId),
+        eq(plainwriteDrafts.userId, userId),
+      ),
+    );
+
+  const draftByPath = new Map(drafts.map((draft) => [draft.filePath, draft]));
+
+  return files.map((file) => {
+    const draft = draftByPath.get(file.path);
+    return {
+      path: file.path,
+      collection: file.collection,
+      filename: file.filename,
+      sha: file.sha,
+      lastSyncedAt: file.lastSyncedAt,
+      status: draft?.content === null ? 'pending-delete' : normalizeDraftStatus(draft?.status),
+    };
+  });
+}
+
+export async function syncProjectContent(projectId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (project.isPrivate && !credential.token) {
+    throw new Error('Connect a GitHub token before syncing a private repository.');
+  }
+  await refreshProjectContentCache(db, tenantId, project, credential.token);
+
+  revalidateProject(projectId);
+}
+
+export async function getEditorState(projectId: string, path: string): Promise<EditorState> {
+  const { db, userId, tenantId } = await getContext();
+  const currentUserRole = await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+
+  const draftRows = await db
+    .select()
+    .from(plainwriteDrafts)
+    .where(
+      and(
+        eq(plainwriteDrafts.tenantId, tenantId),
+        eq(plainwriteDrafts.projectId, projectId),
+        eq(plainwriteDrafts.filePath, path),
+        eq(plainwriteDrafts.userId, userId),
+      ),
+    )
+    .orderBy(desc(plainwriteDrafts.updatedAt))
+    .limit(1);
+  const draft = draftRows[0];
+  if (draft && draft.content !== null && (draft.status === 'draft' || draft.status === 'committed')) {
+    return {
+      project,
+      path,
+      content: draft.content,
+      baseSha: draft.baseSha,
+      status: draft.status,
+      commitMessage: draft.commitMessage,
+      currentUserRole,
+    };
+  }
+
+  const cachedRows = await db
+    .select()
+    .from(plainwriteFileCache)
+    .where(
+      and(
+        eq(plainwriteFileCache.tenantId, tenantId),
+        eq(plainwriteFileCache.projectId, projectId),
+        eq(plainwriteFileCache.path, path),
+      ),
+    )
+    .limit(1);
+  const cached = cachedRows[0];
+
+  try {
+    if (project.isPrivate && !credential.token) {
+      throw new Error('Connect a GitHub token before opening private repository content.');
+    }
+    const provider = getGitProvider(project.provider);
+    const remote = await provider.getFileContent(project, path, { token: credential.token });
+    return {
+      project,
+      path,
+      content: remote.content,
+      baseSha: remote.sha,
+      status: 'unmodified',
+      commitMessage: null,
+      currentUserRole,
+    };
+  } catch {
+    return {
+      project,
+      path,
+      content: defaultMarkdownTemplate(path),
+      baseSha: cached?.sha ?? null,
+      status: 'unmodified',
+      commitMessage: null,
+      currentUserRole,
+    };
+  }
+}
+
+export async function saveDraft(projectId: string, path: string, formData: FormData) {
+  await upsertDraft(projectId, path, formData, 'draft');
+  revalidateEditor(projectId, path);
+}
+
+export async function commitDraft(projectId: string, path: string, formData: FormData) {
+  await upsertDraft(projectId, path, formData, 'committed');
+  revalidateEditor(projectId, path);
+}
+
+export async function createContentFile(projectId: string, formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const filename = formString(formData, 'filename');
+  if (!filename) throw new Error('Filename is required.');
+
+  const path = buildContentFilePath(project.pathPrefix, formString(formData, 'collection'), filename);
+  redirect(`/plainwrite/${projectId}/editor/${path}`);
+}
+
+export async function publishCommittedDraft(projectId: string, path: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (!credential.token) {
+    throw new Error('Connect a GitHub token before publishing.');
+  }
+
+  const draft = await getCurrentUserDraft(db, tenantId, projectId, path, userId);
+  if (!draft || draft.status !== 'committed') {
+    throw new Error('Commit this draft before publishing.');
+  }
+
+  const message = draft.commitMessage || `Update ${path.split('/').at(-1) ?? path}`;
+  const provider = getGitProvider(project.provider);
+  const adapter = getSsgAdapter(project.ssgType);
+
+  try {
+    await assertNoPublishConflict(provider, project, credential.token, path, draft);
+    const result = await provider.publishFile(
+      project,
+      {
+        path,
+        content: draft.content,
+        baseSha: draft.baseSha,
+        message,
+      },
+      { token: credential.token },
+    );
+    const ts = now();
+    await db
+      .update(plainwriteDrafts)
+      .set({
+        status: 'published',
+        publishedAt: ts,
+        updatedAt: ts,
+      })
+      .where(eq(plainwriteDrafts.id, draft.id));
+
+    if (draft.content !== null && result.contentSha) {
+      await upsertFileCache(db, tenantId, project, {
+        path,
+        sha: result.contentSha,
+        collection: adapter.inferCollection(path, project.pathPrefix),
+      });
+    } else if (draft.content === null) {
+      await deleteFileCache(db, tenantId, project.id, path);
+    }
+
+    await insertPublishEvent(db, {
+      tenantId,
+      projectId,
+      userId,
+      provider: project.provider,
+      branch: project.branch,
+      commitSha: result.commitSha,
+      message,
+      files: [path],
+      status: 'success',
+      errorCode: null,
+      errorSummary: null,
+    });
+    revalidateEditor(projectId, path);
+  } catch (error) {
+    const failure = classifyPublishFailure(error);
+    await insertPublishEvent(db, {
+      tenantId,
+      projectId,
+      userId,
+      provider: project.provider,
+      branch: project.branch,
+      commitSha: null,
+      message,
+      files: [path],
+      status: 'failed',
+      errorCode: failure.code,
+      errorSummary: failure.summary,
+    });
+    revalidateEditor(projectId, path);
+    throw new Error(failure.summary);
+  }
+}
+
+export async function discardDraft(projectId: string, path: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  await db
+    .delete(plainwriteDrafts)
+    .where(
+      and(
+        eq(plainwriteDrafts.tenantId, tenantId),
+        eq(plainwriteDrafts.projectId, projectId),
+        eq(plainwriteDrafts.filePath, path),
+        eq(plainwriteDrafts.userId, userId),
+      ),
+    );
+  revalidateEditor(projectId, path);
+}
+
+export async function connectGitHubPat(projectId: string, formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const token = formRawString(formData, 'token').trim();
+  if (!token) throw new Error('GitHub token is required.');
+
+  const existing = await getCredentialRow(db, tenantId, projectId, userId);
+  const provider = getGitProvider(project.provider);
+  const credentialMetadata = await provider.validatePat(token, project);
+  const secretLabel = `Plainwrite GitHub token for ${project.repoOwner}/${project.repoName}`;
+  let secretRef =
+    existing?.status === 'connected' && !existing.secretRef.startsWith('revoked:')
+      ? existing.secretRef
+      : null;
+  if (secretRef) {
+    await sdk.secrets.update(secretRef, token);
+  } else {
+    const secret = await sdk.secrets.create({
+      scope: 'user',
+      label: secretLabel,
+      value: token,
+      metadata: {
+        provider: 'github',
+        projectId,
+        repo: `${project.repoOwner}/${project.repoName}`,
+      },
+    });
+    secretRef = secret.id;
+  }
+
+  const ts = now();
+  const values = {
+    tenantId,
+    projectId,
+    userId,
+    provider: 'github',
+    authType: 'pat',
+    connectionId: null,
+    secretRef,
+    tokenExpiresAt: null,
+    providerLogin: credentialMetadata.login,
+    status: 'connected',
+    lastError: null,
+    createdAt: existing?.createdAt ?? ts,
+    updatedAt: ts,
+  };
+
+  if (existing) {
+    await db
+      .update(plainwriteCredentials)
+      .set(values)
+      .where(
+        and(
+          eq(plainwriteCredentials.tenantId, tenantId),
+          eq(plainwriteCredentials.projectId, projectId),
+          eq(plainwriteCredentials.userId, userId),
+        ),
+      );
+  } else {
+    await db.insert(plainwriteCredentials).values(values);
+  }
+
+  revalidateProject(projectId);
+}
+
+export async function disconnectGitHubCredential(projectId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const existing = await getCredentialRow(db, tenantId, projectId, userId);
+  if (!existing) return;
+
+  await sdk.secrets.delete(existing.secretRef);
+  await db
+    .update(plainwriteCredentials)
+    .set({
+      status: 'disconnected',
+      lastError: null,
+      updatedAt: now(),
+    })
+    .where(
+      and(
+        eq(plainwriteCredentials.tenantId, tenantId),
+        eq(plainwriteCredentials.projectId, projectId),
+        eq(plainwriteCredentials.userId, userId),
+      ),
+    );
+
+  revalidateProject(projectId);
+}
+
+export async function createProject(formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  const name = formString(formData, 'name');
+  if (!name) throw new Error('Project name is required.');
+
+  const repositoryUrl = formString(formData, 'repositoryUrl');
+  const repo = parseGitHubRepositoryUrl(repositoryUrl);
+  const isPrivate = formBoolean(formData, 'isPrivate');
+  const defaults = projectInputDefaults({
+    branch: formString(formData, 'branch'),
+    pathPrefix: formString(formData, 'pathPrefix'),
+    ssgType: formString(formData, 'ssgType'),
+    metadataVisibility: formString(formData, 'metadataVisibility'),
+    isPrivate,
+  });
+  const id = randomUUID();
+  const ts = now();
+
+  await db.insert(plainwriteProjects).values({
+    id,
+    tenantId,
+    createdBy: userId,
+    name,
+    description: formString(formData, 'description') || null,
+    provider: 'github',
+    providerUrl: null,
+    repoOwner: repo.owner,
+    repoName: repo.name,
+    branch: defaults.branch,
+    pathPrefix: defaults.pathPrefix,
+    ssgType: defaults.ssgType,
+    isPrivate,
+    metadataVisibility: defaults.metadataVisibility,
+    archivedAt: null,
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
+  await db.insert(plainwriteProjectMembers).values({
+    tenantId,
+    projectId: id,
+    userId,
+    role: 'owner',
+    invitedBy: null,
+    joinedAt: ts,
+  });
+
+  revalidatePath('/plainwrite');
+  redirect(`/plainwrite/${id}`);
+}
+
+export async function updateProjectSettings(projectId: string, formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  const isPrivate = formBoolean(formData, 'isPrivate');
+  const defaults = projectInputDefaults({
+    branch: formString(formData, 'branch'),
+    pathPrefix: formString(formData, 'pathPrefix'),
+    ssgType: formString(formData, 'ssgType'),
+    metadataVisibility: formString(formData, 'metadataVisibility'),
+    isPrivate,
+  });
+
+  await db
+    .update(plainwriteProjects)
+    .set({
+      name: formString(formData, 'name'),
+      description: formString(formData, 'description') || null,
+      branch: defaults.branch,
+      pathPrefix: defaults.pathPrefix,
+      ssgType: defaults.ssgType,
+      isPrivate,
+      metadataVisibility: defaults.metadataVisibility,
+      updatedAt: now(),
+    })
+    .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)));
+
+  revalidateProject(projectId);
+}
+
+export async function archiveProject(projectId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  await db
+    .update(plainwriteProjects)
+    .set({ archivedAt: now(), updatedAt: now() })
+    .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)));
+  revalidateProject(projectId);
+}
+
+export async function restoreProject(projectId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  await db
+    .update(plainwriteProjects)
+    .set({ archivedAt: null, updatedAt: now() })
+    .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)));
+  revalidateProject(projectId);
+}
+
+export async function hardDeleteProject(projectId: string, formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  if (formString(formData, 'confirm') !== 'DELETE') {
+    throw new Error('Type DELETE to permanently delete the project.');
+  }
+
+  const credentials = await db
+    .select({ secretRef: plainwriteCredentials.secretRef })
+    .from(plainwriteCredentials)
+    .where(and(eq(plainwriteCredentials.tenantId, tenantId), eq(plainwriteCredentials.projectId, projectId)));
+  await Promise.all(
+    credentials.map(async (credential) => {
+      if (!credential.secretRef || credential.secretRef.startsWith('revoked:')) return;
+      try {
+        await sdk.secrets.delete(credential.secretRef);
+      } catch {
+        // Continue deleting plugin-owned rows even if the vault entry was already revoked.
+      }
+    }),
+  );
+
+  await db
+    .delete(plainwritePublishEvents)
+    .where(and(eq(plainwritePublishEvents.tenantId, tenantId), eq(plainwritePublishEvents.projectId, projectId)));
+  await db
+    .delete(plainwriteCollectionSchemas)
+    .where(and(eq(plainwriteCollectionSchemas.tenantId, tenantId), eq(plainwriteCollectionSchemas.projectId, projectId)));
+  await db
+    .delete(plainwriteDrafts)
+    .where(and(eq(plainwriteDrafts.tenantId, tenantId), eq(plainwriteDrafts.projectId, projectId)));
+  await db
+    .delete(plainwriteFileCache)
+    .where(and(eq(plainwriteFileCache.tenantId, tenantId), eq(plainwriteFileCache.projectId, projectId)));
+  await db
+    .delete(plainwriteCredentials)
+    .where(and(eq(plainwriteCredentials.tenantId, tenantId), eq(plainwriteCredentials.projectId, projectId)));
+  await db
+    .delete(plainwriteProjectMembers)
+    .where(and(eq(plainwriteProjectMembers.tenantId, tenantId), eq(plainwriteProjectMembers.projectId, projectId)));
+  await db
+    .delete(plainwriteProjects)
+    .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)));
+
+  revalidatePath('/plainwrite');
+  redirect('/plainwrite');
+}
+
+export async function inviteProjectMember(projectId: string, formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  const invitedUserId = formString(formData, 'userId');
+  const role = formString(formData, 'role');
+  if (!invitedUserId) throw new Error('User ID is required.');
+  if (!isProjectRole(role)) throw new Error('Invalid project role.');
+
+  const existing = await db
+    .select()
+    .from(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.projectId, projectId),
+        eq(plainwriteProjectMembers.userId, invitedUserId),
+      ),
+    )
+    .limit(1);
+
+  if (existing.length) {
+    const existingMember = existing[0]!;
+    if (existingMember.role === 'owner' && role !== 'owner') {
+      const ownerCount = await countProjectOwners(db, tenantId, projectId);
+      if (ownerCount <= 1) {
+        throw new Error('The last owner cannot be demoted.');
+      }
+    }
+
+    await db
+      .update(plainwriteProjectMembers)
+      .set({ role })
+      .where(
+        and(
+          eq(plainwriteProjectMembers.tenantId, tenantId),
+          eq(plainwriteProjectMembers.projectId, projectId),
+          eq(plainwriteProjectMembers.userId, invitedUserId),
+        ),
+      );
+  } else {
+    await db.insert(plainwriteProjectMembers).values({
+      tenantId,
+      projectId,
+      userId: invitedUserId,
+      role,
+      invitedBy: userId,
+      joinedAt: now(),
+    });
+  }
+
+  revalidateProject(projectId);
+}
+
+export async function removeProjectMember(projectId: string, memberUserId: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+
+  const members = await db
+    .select()
+    .from(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.projectId, projectId),
+      ),
+    );
+  const target = members.find((member) => member.userId === memberUserId);
+  if (!target) return;
+  const ownerCount = members.filter((member) => member.role === 'owner').length;
+  if (target.userId === userId && target.role === 'owner' && ownerCount <= 1) {
+    throw new Error('The last owner cannot remove themselves.');
+  }
+
+  await db
+    .delete(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.projectId, projectId),
+        eq(plainwriteProjectMembers.userId, memberUserId),
+      ),
+    );
+
+  revalidateProject(projectId);
+}
+
+async function countProjectOwners(db: Db, tenantId: string, projectId: string) {
+  const owners = await db
+    .select({ userId: plainwriteProjectMembers.userId })
+    .from(plainwriteProjectMembers)
+    .where(
+      and(
+        eq(plainwriteProjectMembers.tenantId, tenantId),
+        eq(plainwriteProjectMembers.projectId, projectId),
+        eq(plainwriteProjectMembers.role, 'owner'),
+      ),
+    );
+  return owners.length;
+}
+
+async function getProjectRow(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+): Promise<PlainwriteProject> {
+  const rows = await db
+    .select()
+    .from(plainwriteProjects)
+    .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)))
+    .limit(1);
+  const project = rows[0];
+  if (!project) throw new Error('Project not found');
+  return project;
+}
+
+async function getCredentialRow(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  userId: string,
+): Promise<PlainwriteCredential | null> {
+  const rows = await db
+    .select()
+    .from(plainwriteCredentials)
+    .where(
+      and(
+        eq(plainwriteCredentials.tenantId, tenantId),
+        eq(plainwriteCredentials.projectId, projectId),
+        eq(plainwriteCredentials.userId, userId),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function resolveGitHubCredential(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  userId: string,
+): Promise<{ token: string | null; credential: PlainwriteCredential | null }> {
+  const credential = await getCredentialRow(db, tenantId, projectId, userId);
+  if (!credential || credential.status !== 'connected') {
+    return { token: null, credential };
+  }
+  if (!credential.secretRef || credential.secretRef.startsWith('revoked:')) {
+    return { token: null, credential };
+  }
+
+  try {
+    const token = await sdk.secrets.get(credential.secretRef);
+    if (!token) {
+      await markCredentialError(db, tenantId, projectId, userId, 'Credential secret is missing.');
+      return { token: null, credential };
+    }
+    return { token, credential };
+  } catch {
+    await markCredentialError(db, tenantId, projectId, userId, 'Credential secret could not be read.');
+    return { token: null, credential };
+  }
+}
+
+async function markCredentialError(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  userId: string,
+  message: string,
+) {
+  await db
+    .update(plainwriteCredentials)
+    .set({
+      status: 'needs_reauth',
+      lastError: message,
+      updatedAt: now(),
+    })
+    .where(
+      and(
+        eq(plainwriteCredentials.tenantId, tenantId),
+        eq(plainwriteCredentials.projectId, projectId),
+        eq(plainwriteCredentials.userId, userId),
+      ),
+    );
+}
+
+function shouldRefreshContentCache(lastSyncedAtValues: number[]) {
+  if (lastSyncedAtValues.length === 0) return true;
+  const oldestSync = Math.min(...lastSyncedAtValues);
+  return now() - oldestSync >= CONTENT_SYNC_TTL_SECONDS;
+}
+
+function canViewCachedMetadata(project: PlainwriteProject, token: string | null) {
+  if (!project.isPrivate) return true;
+  if (token) return true;
+  return project.metadataVisibility === 'all_members';
+}
+
+async function refreshProjectContentCache(
+  db: Db,
+  tenantId: string,
+  project: PlainwriteProject,
+  token: string | null,
+) {
+  const provider = getGitProvider(project.provider);
+  const adapter = getSsgAdapter(project.ssgType);
+  const tree = await provider.getFileTree(project, { token });
+  const files = adapter.discoverContent(tree, project.pathPrefix);
+  const ts = now();
+
+  await db
+    .delete(plainwriteFileCache)
+    .where(
+      and(
+        eq(plainwriteFileCache.tenantId, tenantId),
+        eq(plainwriteFileCache.projectId, project.id),
+      ),
+    );
+
+  if (files.length > 0) {
+    await db.insert(plainwriteFileCache).values(
+      files.map((file) => ({
+        id: randomUUID(),
+        tenantId,
+        projectId: project.id,
+        path: file.path,
+        collection: file.collection,
+        filename: file.filename,
+        sha: file.sha,
+        lastSyncedAt: ts,
+      })),
+    );
+  }
+}
+
+async function upsertDraft(
+  projectId: string,
+  path: string,
+  formData: FormData,
+  status: 'draft' | 'committed',
+) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const content = formRawString(formData, 'content');
+  const baseSha = formString(formData, 'baseSha') || null;
+  const commitMessage =
+    formString(formData, 'commitMessage') ||
+    (status === 'committed' ? `Update ${path.split('/').at(-1) ?? path}` : null);
+  const ts = now();
+
+  const existing = await db
+    .select({ id: plainwriteDrafts.id })
+    .from(plainwriteDrafts)
+    .where(
+      and(
+        eq(plainwriteDrafts.tenantId, tenantId),
+        eq(plainwriteDrafts.projectId, projectId),
+        eq(plainwriteDrafts.filePath, path),
+        eq(plainwriteDrafts.userId, userId),
+      ),
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(plainwriteDrafts)
+      .set({
+        content,
+        status,
+        commitMessage,
+        baseSha,
+        committedAt: status === 'committed' ? ts : null,
+        updatedAt: ts,
+      })
+      .where(eq(plainwriteDrafts.id, existing[0].id));
+  } else {
+    await db.insert(plainwriteDrafts).values({
+      id: randomUUID(),
+      tenantId,
+      projectId,
+      filePath: path,
+      userId,
+      content,
+      status,
+      commitMessage,
+      baseSha,
+      committedAt: status === 'committed' ? ts : null,
+      publishedAt: null,
+      createdAt: ts,
+      updatedAt: ts,
+    });
+  }
+}
+
+async function getCurrentUserDraft(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  path: string,
+  userId: string,
+): Promise<PlainwriteDraft | null> {
+  const rows = await db
+    .select()
+    .from(plainwriteDrafts)
+    .where(
+      and(
+        eq(plainwriteDrafts.tenantId, tenantId),
+        eq(plainwriteDrafts.projectId, projectId),
+        eq(plainwriteDrafts.filePath, path),
+        eq(plainwriteDrafts.userId, userId),
+      ),
+    )
+    .orderBy(desc(plainwriteDrafts.updatedAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function assertNoPublishConflict(
+  provider: ReturnType<typeof getGitProvider>,
+  project: PlainwriteProject,
+  token: string,
+  path: string,
+  draft: PlainwriteDraft,
+) {
+  if (draft.content === null && !draft.baseSha) {
+    throw new Error('Cannot publish a delete without a remote base revision.');
+  }
+
+  try {
+    const remote = await provider.getFileContent(project, path, { token });
+    if (!draft.baseSha) {
+      throw new Error('Conflict: remote file already exists.');
+    }
+    if (remote.sha !== draft.baseSha) {
+      throw new Error('Conflict: remote file changed since this draft was opened.');
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith('Conflict:')) throw error;
+    if (message.includes('not found') || message.includes('not access it')) {
+      if (draft.baseSha) throw new Error('Conflict: remote file no longer exists.');
+      return;
+    }
+    throw error;
+  }
+}
+
+async function upsertFileCache(
+  db: Db,
+  tenantId: string,
+  project: PlainwriteProject,
+  file: Pick<PlainwriteFileCacheEntry, 'path' | 'sha' | 'collection'>,
+) {
+  const filename = file.path.split('/').at(-1) ?? file.path;
+  const existing = await db
+    .select({ id: plainwriteFileCache.id })
+    .from(plainwriteFileCache)
+    .where(
+      and(
+        eq(plainwriteFileCache.tenantId, tenantId),
+        eq(plainwriteFileCache.projectId, project.id),
+        eq(plainwriteFileCache.path, file.path),
+      ),
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(plainwriteFileCache)
+      .set({
+        collection: file.collection,
+        filename,
+        sha: file.sha,
+        lastSyncedAt: now(),
+      })
+      .where(eq(plainwriteFileCache.id, existing[0].id));
+    return;
+  }
+
+  await db.insert(plainwriteFileCache).values({
+    id: randomUUID(),
+    tenantId,
+    projectId: project.id,
+    path: file.path,
+    collection: file.collection,
+    filename,
+    sha: file.sha,
+    lastSyncedAt: now(),
+  });
+}
+
+async function deleteFileCache(db: Db, tenantId: string, projectId: string, path: string) {
+  await db
+    .delete(plainwriteFileCache)
+    .where(
+      and(
+        eq(plainwriteFileCache.tenantId, tenantId),
+        eq(plainwriteFileCache.projectId, projectId),
+        eq(plainwriteFileCache.path, path),
+      ),
+    );
+}
+
+async function insertPublishEvent(
+  db: Db,
+  event: {
+    tenantId: string;
+    projectId: string;
+    userId: string;
+    provider: string;
+    branch: string;
+    commitSha: string | null;
+    message: string;
+    files: string[];
+    status: 'success' | 'failed';
+    errorCode: string | null;
+    errorSummary: string | null;
+  },
+) {
+  await db.insert(plainwritePublishEvents).values({
+    id: randomUUID(),
+    tenantId: event.tenantId,
+    projectId: event.projectId,
+    userId: event.userId,
+    provider: event.provider,
+    branch: event.branch,
+    commitSha: event.commitSha,
+    message: event.message,
+    files: JSON.stringify(event.files),
+    status: event.status,
+    errorCode: event.errorCode,
+    errorSummary: event.errorSummary,
+    createdAt: now(),
+  });
+}
+
+function classifyPublishFailure(error: unknown) {
+  const summary = sanitizePublishError(error);
+  const lower = summary.toLowerCase();
+  if (lower.includes('conflict') || lower.includes('changed') || lower.includes('no longer exists')) {
+    return { code: 'conflict', summary };
+  }
+  if (lower.includes('scope') || lower.includes('permission')) {
+    return { code: 'missing_scope', summary };
+  }
+  if (lower.includes('rate limited')) {
+    return { code: 'rate_limited', summary };
+  }
+  if (lower.includes('branch')) {
+    return { code: 'protected_branch', summary };
+  }
+  return { code: 'provider_error', summary };
+}
+
+function sanitizePublishError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/g, 'Bearer [redacted]');
+}
+
+function parsePublishedFiles(value: string) {
+  try {
+    const files = JSON.parse(value);
+    return Array.isArray(files) ? files.filter((file): file is string => typeof file === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeDraftStatus(
+  status: string | undefined,
+): ContentFileSummary['status'] {
+  if (status === 'draft' || status === 'committed') return status;
+  return 'unmodified';
+}
+
+export async function requireEditAccess(projectId: string) {
+  const { db, userId, tenantId } = await getContext();
+  return requireProjectRole(db, tenantId, projectId, userId, 'editor');
+}
+
+export async function requirePublishAccess(projectId: string) {
+  const { db, userId, tenantId } = await getContext();
+  return requireProjectRole(db, tenantId, projectId, userId, 'editor');
+}
+
+function revalidateProject(projectId: string) {
+  revalidatePath('/plainwrite');
+  revalidatePath(`/plainwrite/${projectId}`);
+  revalidatePath(`/plainwrite/${projectId}/settings`);
+}
+
+function revalidateEditor(projectId: string, path: string) {
+  revalidateProject(projectId);
+  revalidatePath(`/plainwrite/${projectId}/editor/${path}`);
+}

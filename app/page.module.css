@@ -1,5 +1,51 @@
 .page {
   display: grid;
   gap: var(--sv-space-6);
-  max-width: 960px;
+  max-width: 1040px;
+}
+
+.headerActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+}
+
+.projectList {
+  display: grid;
+  gap: var(--sv-space-3);
+}
+
+.project {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  color: var(--sv-color-text-primary);
+  padding: var(--sv-space-4);
+  text-decoration: none;
+}
+
+.project h2,
+.project h3,
+.projectList h2 {
+  margin: 0;
+}
+
+.project p {
+  margin: var(--sv-space-1) 0 0;
+  color: var(--sv-color-text-secondary);
+}
+
+@media (max-width: 720px) {
+  .project {
+    grid-template-columns: 1fr;
+  }
+
+  .project {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

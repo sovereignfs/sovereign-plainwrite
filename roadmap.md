@@ -128,6 +128,25 @@ Verification:
 
 **Spec refs:** PLW-01 through PLW-05, Access control.
 
+**Status:** Complete.
+
+Progress as of 2026-07-06:
+
+- [x] Added project create, list, detail, settings update, archive, restore, and
+  hard-delete server actions.
+- [x] Added GitHub repository URL parsing and validation into `repo_owner` and
+  `repo_name`.
+- [x] Insert project creator membership as `owner`.
+- [x] Added owner, editor, and viewer role helpers for current and future edit
+  and publish flows.
+- [x] Added owner-only member invite/update/remove actions with last-owner
+  self-removal protection.
+- [x] Hid archived projects from the active listing while keeping a separate
+  archived section for restore/delete.
+- [x] Added project create/detail/settings UI forms.
+- [x] Added unit tests for repository parsing, default input normalization, and
+  role authorization.
+
 Implement project creation, settings, archive, membership, and role checks.
 
 Implementation requirements:
@@ -158,6 +177,26 @@ Verification:
 
 **Spec refs:** PLW-06, PLW-07, OAuth flow, Credential encryption.
 
+**Status:** Implementation complete; credential tests still pending.
+
+Progress as of 2026-07-07:
+
+- [x] Added project settings UI for each editor/owner to connect a GitHub PAT.
+- [x] Validates the PAT against GitHub and resolves the provider login before
+  storing metadata.
+- [x] Stores token material only with `sdk.secrets`; Plainwrite stores
+  `secret_ref`, provider, `auth_type`, provider login, status, and sanitized
+  error metadata.
+- [x] Reconnecting creates or rotates the platform vault secret without exposing
+  the token.
+- [x] Disconnect deletes the platform vault secret and marks the credential
+  disconnected without deleting drafts.
+- [x] Sync and editor file reads use the current user's connected token when
+  available and require it for private repositories.
+- [x] Documented required GitHub token contents read/write permissions in UI
+  help copy and README.
+- [ ] Add tests proving token values are not written to plugin tables.
+
 Implement PAT-backed GitHub connection before OAuth.
 
 Implementation requirements:
@@ -187,6 +226,26 @@ Verification:
 ### PLW-005 Implement GitHub Provider And Astro Adapter
 
 **Spec refs:** Git provider adapter, SSG adapter, PLW-08 through PLW-10.
+
+**Status:** Complete for v0.1 read-only sync. Publish remains in PLW-007.
+
+Progress as of 2026-07-07:
+
+- [x] Added Astro Markdown/MDX discovery for files under `path_prefix`.
+- [x] Grouped files directly under the path prefix as `Root` and immediate
+  subdirectories as collections.
+- [x] Added manual project sync for public GitHub repositories using the GitHub
+  tree API.
+- [x] Refreshes `plainwrite_file_cache` with path, collection, filename, SHA,
+  and sync timestamp.
+- [x] Project dashboard lists cached content files with per-user status badges.
+- [x] Replaced direct server-action fetch/discovery helpers with Git provider
+  and SSG adapter interfaces.
+- [x] Uses the current user's project credential for private repository sync and
+  content reads.
+- [x] Added TTL-based sync on project load.
+- [x] Enforces `metadata_visibility` for private repository cache display.
+- [x] Added provider and adapter tests.
 
 Implement the v0.1 GitHub provider and first-class Astro SSG adapter plus
 read-only file sync.
@@ -223,6 +282,36 @@ Verification:
 
 **Spec refs:** PLW-11 through PLW-20.
 
+**Status:** Partial. Existing/new-file editing, local draft state, raw YAML
+frontmatter editing, and sanitized preview are implemented; structured schema
+fields, staged deletion, autosave, and remote publish remain.
+
+Progress as of 2026-07-07:
+
+- [x] Editor opens provider content unless the current user has an active
+  `draft` or `committed` draft.
+- [x] Manual save persists the editor body to `plainwrite_drafts` as `draft`.
+- [x] Commit action marks the current editor body as `committed` with a commit
+  message.
+- [x] Discard removes the active current-user draft and reloads provider
+  content.
+- [x] Viewer roles can open editor content read-only; editor actions require
+  project edit access.
+- [x] Project dashboard reflects draft/committed file status for the current
+  user.
+- [x] Add explicit discard confirmation.
+- [x] Add collection-aware new-file creation and slug generation.
+- [x] Split editor content into raw YAML frontmatter and Markdown body.
+- [x] Add sanitized Markdown preview with raw HTML and MDX execution disabled.
+- [x] Add editor helper tests for frontmatter parsing, slug generation, path
+  generation, and preview escaping.
+- [ ] Add staged deletion drafts with `content: null`.
+- [ ] Parse and serialize frontmatter with `gray-matter` or a schema-aware YAML
+  parser once structured fields are implemented.
+- [ ] Add structured frontmatter fields and raw YAML toggle.
+- [ ] Add autosave after idle typing.
+- [ ] Add editor lifecycle integration tests.
+
 Build the editing workflow through local draft commit state, without remote
 publishing yet.
 
@@ -257,6 +346,26 @@ Verification:
 
 **Spec refs:** PLW-21, PLW-23, Multi-file publish GitHub details,
 `plainwrite_publish_events`.
+
+**Status:** Complete for direct single-file create/update publish. Staged
+deletion UI and publish-all remain in PLW-008; pull-request publishing remains a
+later enhancement.
+
+Progress as of 2026-07-07:
+
+- [x] Added GitHub contents API write support for single-file create/update.
+- [x] Added provider delete support for the future staged deletion flow.
+- [x] Added `publishCommittedDraft` server action using the current user's
+  connected credential.
+- [x] Fetches the current remote blob SHA before publish and blocks conflicts.
+- [x] Preserves committed drafts on conflict, missing scope, protected branch,
+  rate limit, or other provider failures.
+- [x] Marks drafts `published`, sets `published_at`, updates local file cache,
+  and stores the provider commit SHA after success.
+- [x] Records `plainwrite_publish_events` rows for success and failure.
+- [x] Shows recent publish audit events on the project dashboard.
+- [x] Added GitHub provider mock tests for create/update and delete request
+  construction.
 
 Implement direct GitHub publish for one committed draft.
 

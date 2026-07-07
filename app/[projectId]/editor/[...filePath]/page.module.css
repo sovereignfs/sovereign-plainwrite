@@ -4,7 +4,79 @@
   min-height: 100%;
 }
 
-.preview {
+.toolbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sv-space-4);
+  padding: var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+}
+
+.toolbar p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.toolbarActions,
+.editorActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+}
+
+.toolbarActions a,
+.toolbarActions button,
+.editorActions button,
+.commitForm button {
+  border: 1px solid var(--sv-color-border-strong);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+  text-decoration: none;
+}
+
+.toolbarActions a:hover,
+.toolbarActions button:hover,
+.editorActions button:hover,
+.commitForm button:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
+.toolbarActions button:disabled,
+.editorActions button:disabled,
+.commitForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.editorForm,
+.sidePanel,
+.commitForm {
+  display: grid;
+  gap: var(--sv-space-4);
+}
+
+.editorActions {
+  justify-content: flex-end;
+}
+
+.editorActions button,
+.commitForm button {
+  background: var(--sv-color-accent);
+  border-color: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+}
+
+.sidePanel {
+  align-content: start;
   min-height: 320px;
   padding: var(--sv-space-5);
   border: 1px solid var(--sv-color-border);
@@ -13,12 +85,62 @@
   color: var(--sv-color-text-primary);
 }
 
-.preview h2 {
-  margin: 0 0 var(--sv-space-3);
+.sidePanel h2,
+.previewBlock h3 {
+  margin: 0 0 var(--sv-space-2);
   font-size: var(--sv-font-size-lg);
 }
 
-.preview p {
+.sidePanel p {
   margin: 0;
   color: var(--sv-color-text-muted);
+}
+
+.eyebrow {
+  margin: 0 0 var(--sv-space-1);
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.commitForm label {
+  color: var(--sv-color-text-primary);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.commitForm input {
+  width: 100%;
+  border: 1px solid var(--sv-color-border-strong);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+}
+
+.previewBlock {
+  display: grid;
+  gap: var(--sv-space-2);
+  padding-top: var(--sv-space-4);
+  border-top: 1px solid var(--sv-color-border);
+}
+
+.previewBlock pre {
+  max-height: 360px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+  font-family: var(--sv-font-family-mono);
+  font-size: var(--sv-font-size-sm);
+  padding: var(--sv-space-3);
+}
+
+@media (max-width: 700px) {
+  .toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

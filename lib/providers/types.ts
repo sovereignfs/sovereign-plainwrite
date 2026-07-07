@@ -12,7 +12,8 @@ export interface PlainwriteProjectRef {
 
 export interface PlainwriteCredentialRef {
   authType: 'oauth' | 'pat';
-  secretRef: string;
+  secretRef?: string;
+  token?: string | null;
   providerLogin: string | null;
 }
 
@@ -28,6 +29,11 @@ export interface PendingFile {
   content: string | null;
   baseSha: string | null;
   message: string | null;
+}
+
+export interface PublishResult {
+  commitSha: string;
+  contentSha: string | null;
 }
 
 export interface OAuthTokens {
@@ -47,23 +53,27 @@ export interface GitProviderAdapter {
     project: PlainwriteProjectRef,
     file: PendingFile,
     credential: PlainwriteCredentialRef,
-  ): Promise<void>;
+  ): Promise<PublishResult>;
   publishFiles(
     project: PlainwriteProjectRef,
     files: PendingFile[],
     message: string,
     credential: PlainwriteCredentialRef,
-  ): Promise<void>;
+  ): Promise<PublishResult>;
   deleteFile(
     project: PlainwriteProjectRef,
     path: string,
     sha: string,
     message: string,
     credential: PlainwriteCredentialRef,
-  ): Promise<void>;
+  ): Promise<PublishResult>;
   getOAuthUrl(state: string): string | null;
   exchangeOAuthCode(code: string): Promise<OAuthTokens>;
   resolveUserInfo(
     credential: PlainwriteCredentialRef,
   ): Promise<{ login: string; displayName: string }>;
+  validatePat(
+    token: string,
+    project: PlainwriteProjectRef,
+  ): Promise<{ login: string; canPush: boolean }>;
 }

@@ -1,0 +1,161 @@
+.page {
+  display: grid;
+  gap: var(--sv-space-5);
+  max-width: 1040px;
+}
+
+.panel {
+  display: grid;
+  gap: var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-5);
+}
+
+.panel h2,
+.member p {
+  margin: 0;
+}
+
+.panelDescription,
+.helpText,
+.errorText {
+  margin: var(--sv-space-1) 0 0;
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.errorText {
+  color: var(--sv-color-error-text);
+}
+
+.panelHeader,
+.member,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.form,
+.members,
+.inlineForm,
+.deleteForm,
+.credentialForms {
+  display: grid;
+  gap: var(--sv-space-4);
+}
+
+.grid,
+.inlineForm {
+  display: grid;
+  gap: var(--sv-space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form label,
+.inlineForm label,
+.deleteForm label {
+  display: grid;
+  gap: var(--sv-space-2);
+}
+
+.form span,
+.inlineForm span,
+.deleteForm span,
+.member p {
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.form input,
+.form select,
+.form textarea,
+.inlineForm input,
+.inlineForm select,
+.deleteForm input {
+  width: 100%;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+}
+
+.credentialDetails {
+  display: grid;
+  gap: var(--sv-space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.credentialDetails div {
+  display: grid;
+  gap: var(--sv-space-1);
+}
+
+.credentialDetails dt {
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.credentialDetails dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.checkbox {
+  align-items: center;
+  display: flex !important;
+  gap: var(--sv-space-2) !important;
+}
+
+.checkbox input {
+  width: auto;
+}
+
+.member {
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  padding: var(--sv-space-3);
+}
+
+.form button,
+.inlineForm button,
+.member button,
+.actions button,
+.secondaryButton {
+  justify-self: start;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-accent);
+  color: var(--sv-color-accent-contrast);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-4);
+}
+
+.secondaryButton {
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+}
+
+.actions {
+  align-items: flex-start;
+}
+
+@media (max-width: 720px) {
+  .grid,
+  .inlineForm,
+  .credentialDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .member,
+  .actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

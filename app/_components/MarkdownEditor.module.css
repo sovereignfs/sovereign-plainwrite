@@ -1,0 +1,176 @@
+.shell {
+  display: grid;
+  gap: var(--sv-space-5);
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
+  align-items: start;
+}
+
+.editorForm,
+.sidePanel,
+.commitPanel,
+.previewPanel {
+  display: grid;
+  gap: var(--sv-space-4);
+}
+
+.frontmatterPanel,
+.bodyPanel,
+.commitPanel,
+.previewPanel {
+  display: grid;
+  gap: var(--sv-space-3);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  padding: var(--sv-space-4);
+}
+
+.sidePanel {
+  position: sticky;
+  top: var(--sv-space-4);
+}
+
+.sectionHeader {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.sectionHeader h2,
+.commitPanel h2 {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+}
+
+.sectionHeader span {
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+  white-space: nowrap;
+}
+
+.eyebrow {
+  margin: 0 0 var(--sv-space-1);
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.commitPanel p {
+  margin: 0;
+  color: var(--sv-color-text-secondary);
+}
+
+.commitPanel label {
+  color: var(--sv-color-text-primary);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.commitPanel input {
+  width: 100%;
+  border: 1px solid var(--sv-color-border-strong);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+}
+
+.actions {
+  display: grid;
+  gap: var(--sv-space-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.actions button,
+.discardForm button {
+  border: 1px solid var(--sv-color-border-strong);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+}
+
+.actions form {
+  display: grid;
+}
+
+.actions form button {
+  width: 100%;
+}
+
+.primaryAction {
+  background: var(--sv-color-accent);
+  border-color: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+}
+
+.actions button:hover,
+.discardForm button:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
+.primaryAction:hover {
+  background: var(--sv-color-accent-hover);
+}
+
+.actions button:disabled,
+.discardForm button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.discardForm {
+  margin: 0;
+}
+
+.discardForm button {
+  width: 100%;
+}
+
+.preview {
+  min-height: 260px;
+  max-height: 620px;
+  overflow: auto;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+  padding: var(--sv-space-4);
+}
+
+.preview h1,
+.preview h2,
+.preview h3,
+.preview p,
+.preview ul {
+  margin-top: 0;
+}
+
+.preview code {
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-surface);
+  font-family: var(--sv-font-family-mono);
+  padding: 0 var(--sv-space-1);
+}
+
+@media (max-width: 1040px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidePanel {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .actions {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+  }
+}

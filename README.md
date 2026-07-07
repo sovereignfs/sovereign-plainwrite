@@ -1,9 +1,10 @@
 # Plainwrite
 
 Plainwrite is a Sovereign plugin for editing Markdown content in git-backed
-static sites. The current scaffold covers PLW-001: manifest, route shell,
-package metadata, icon, and stable placeholder locations for the provider, SSG,
-database, and editor work planned in `roadmap.md`.
+static sites. The current implementation covers the v0.1 foundation: project
+management, project membership, GitHub content sync, local draft editing,
+single-file GitHub publish, and GitHub personal access token storage through the
+Sovereign secret vault.
 
 ## Local development
 
@@ -29,15 +30,39 @@ Implemented now:
 
 - Sovereign manifest with data contracts, external GitHub provider declaration,
   portability permissions, and `0.18.2` platform compatibility.
-- Placeholder project overview, project files, settings, editor, and GitHub
-  OAuth callback routes.
-- Typed provider and SSG adapter interfaces with Astro/GitHub placeholder
-  modules.
+- Project CRUD, settings, archive/delete, and member roles.
+- GitHub sync for Astro Markdown/MDX content under the configured path prefix,
+  using anonymous reads for public repositories and the current user's connected
+  PAT for private repositories.
+- Local editor workflow for opening remote content, creating new files, editing
+  raw YAML frontmatter and Markdown body, previewing escaped Markdown, saving
+  drafts, marking drafts ready to commit, publishing one committed file, and
+  discarding drafts.
+- GitHub PAT connection UI in project settings. Tokens are stored with
+  `sdk.secrets`; Plainwrite stores only `secret_ref`, provider, auth type,
+  account login, status, and sanitized metadata.
+- Single-file publish uses the current user's GitHub token, checks the remote
+  blob SHA before writing, preserves committed drafts on conflict or provider
+  failure, updates the local file cache after success, and records
+  `plainwrite_publish_events` rows for both success and failure.
 
 Not implemented yet:
 
-- Database migrations and full table schema.
-- Project CRUD and membership.
-- GitHub PAT/OAuth credential flows.
-- Repository sync, Markdown editing, publishing, data contracts, portability,
-  notifications, and activity events.
+- OAuth connection flow.
+- Publish-all, pull-request publishing, and structured conflict-resolution UI.
+- Structured frontmatter fields, autosave, staged deletion UI, data contracts,
+  portability handlers, notifications, and activity events.
+
+## GitHub personal access tokens
+
+Each user connects their own token per project from **Project settings → GitHub
+credential**. Use a fine-grained GitHub token scoped to the selected repository:
+
+- Contents read access is required for private repository sync.
+- Contents write access is required for publishing committed drafts.
+
+Plainwrite validates the token against GitHub before storing it. The token value
+is never persisted in Plainwrite tables, exported, or rendered back to the
+client. Disconnecting a credential deletes the platform vault secret and marks
+the Plainwrite credential metadata as disconnected without deleting project
+drafts.
