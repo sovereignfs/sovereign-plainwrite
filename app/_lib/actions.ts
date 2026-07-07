@@ -14,6 +14,7 @@ import {
   plainwriteProjectMembers,
   plainwriteProjects,
   plainwritePublishEvents,
+  type PlainwriteCollectionSchema,
   type PlainwriteCredential,
   type PlainwriteDraft,
   type PlainwriteFileCacheEntry,
@@ -30,6 +31,13 @@ import {
   projectInputDefaults,
   type ProjectRole,
 } from './project-rules';
+import {
+  inferCollectionSchema,
+  parseSchemaJson,
+  schemaFieldsFromForm,
+  serializeSchemaFields,
+  type CollectionSchemaField,
+} from './schema-rules';
 import { getSsgAdapter } from './ssg-adapters';
 
 // The SDK intentionally returns an opaque dialect-agnostic DB client.
@@ -60,6 +68,15 @@ interface CredentialSummary {
 interface ProjectDetail extends ProjectSummary {
   members: ProjectMemberSummary[];
   credential: CredentialSummary | null;
+}
+
+interface CollectionSchemaSummary {
+  id: string;
+  collection: string;
+  fields: CollectionSchemaField[];
+  inferredAt: number | null;
+  updatedAt: number;
+  isManual: boolean;
 }
 
 interface ContentFileSummary extends ContentFile {
@@ -285,6 +302,30 @@ export async function listPublishEvents(projectId: string): Promise<PublishEvent
     errorCode: row.errorCode,
     errorSummary: row.errorSummary,
     createdAt: row.createdAt,
+  }));
+}
+
+export async function listCollectionSchemas(projectId: string): Promise<CollectionSchemaSummary[]> {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
+  const rows = await db
+    .select()
+    .from(plainwriteCollectionSchemas)
+    .where(
+      and(
+        eq(plainwriteCollectionSchemas.tenantId, tenantId),
+        eq(plainwriteCollectionSchemas.projectId, projectId),
+      ),
+    )
+    .orderBy(asc(plainwriteCollectionSchemas.collection));
+
+  return rows.map((row) => ({
+    id: row.id,
+    collection: row.collection,
+    fields: safeParseSchema(row),
+    inferredAt: row.inferredAt,
+    updatedAt: row.updatedAt,
+    isManual: row.updatedBy !== null,
   }));
 }
 
@@ -538,6 +579,209 @@ export async function publishCommittedDraft(projectId: string, path: string) {
     revalidateEditor(projectId, path);
     throw new Error(failure.summary);
   }
+}
+
+export async function publishAllCommittedDrafts(projectId: string, formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (!credential.token) {
+    throw new Error('Connect a GitHub token before publishing.');
+  }
+
+  const skipConflicts = formBoolean(formData, 'skipConflicts');
+  const drafts = await db
+    .select()
+    .from(plainwriteDrafts)
+    .where(
+      and(
+        eq(plainwriteDrafts.tenantId, tenantId),
+        eq(plainwriteDrafts.projectId, projectId),
+        eq(plainwriteDrafts.userId, userId),
+        eq(plainwriteDrafts.status, 'committed'),
+      ),
+    )
+    .orderBy(asc(plainwriteDrafts.filePath));
+  if (drafts.length === 0) throw new Error('Commit at least one draft before publishing all.');
+
+  const provider = getGitProvider(project.provider);
+  const publishable: PlainwriteDraft[] = [];
+  const conflicts: string[] = [];
+  for (const draft of drafts) {
+    try {
+      await assertNoPublishConflict(provider, project, credential.token, draft.filePath, draft);
+      publishable.push(draft);
+    } catch (error) {
+      conflicts.push(`${draft.filePath}: ${sanitizePublishError(error)}`);
+    }
+  }
+
+  if (conflicts.length > 0 && !skipConflicts) {
+    const summary = `Resolve conflicts before publishing all: ${conflicts.join('; ')}`;
+    await insertPublishEvent(db, {
+      tenantId,
+      projectId,
+      userId,
+      provider: project.provider,
+      branch: project.branch,
+      commitSha: null,
+      message: 'Publish all committed drafts',
+      files: drafts.map((draft) => draft.filePath),
+      status: 'failed',
+      errorCode: 'conflict',
+      errorSummary: summary,
+    });
+    throw new Error(summary);
+  }
+  if (publishable.length === 0) throw new Error('All committed drafts have conflicts.');
+
+  const message =
+    formString(formData, 'message') ||
+    `Publish ${publishable.length} ${publishable.length === 1 ? 'file' : 'files'}`;
+  const adapter = getSsgAdapter(project.ssgType);
+
+  try {
+    const result = await provider.publishFiles(
+      project,
+      publishable.map((draft) => ({
+        path: draft.filePath,
+        action: draft.content === null ? 'delete' : draft.baseSha ? 'update' : 'create',
+        content: draft.content,
+        baseSha: draft.baseSha,
+        message: draft.commitMessage,
+      })),
+      message,
+      { token: credential.token },
+    );
+    const ts = now();
+    await Promise.all(
+      publishable.map(async (draft) => {
+        await db
+          .update(plainwriteDrafts)
+          .set({ status: 'published', publishedAt: ts, updatedAt: ts })
+          .where(eq(plainwriteDrafts.id, draft.id));
+
+        if (draft.content === null) {
+          await deleteFileCache(db, tenantId, project.id, draft.filePath);
+          return;
+        }
+
+        const contentSha = result.contentShas?.[draft.filePath];
+        if (contentSha) {
+          await upsertFileCache(db, tenantId, project, {
+            path: draft.filePath,
+            sha: contentSha,
+            collection: adapter.inferCollection(draft.filePath, project.pathPrefix),
+          });
+        }
+      }),
+    );
+
+    await insertPublishEvent(db, {
+      tenantId,
+      projectId,
+      userId,
+      provider: project.provider,
+      branch: project.branch,
+      commitSha: result.commitSha,
+      message,
+      files: publishable.map((draft) => draft.filePath),
+      status: 'success',
+      errorCode: conflicts.length > 0 ? 'conflicts_skipped' : null,
+      errorSummary: conflicts.length > 0 ? `Skipped conflicts: ${conflicts.join('; ')}` : null,
+    });
+  } catch (error) {
+    const failure = classifyPublishFailure(error);
+    await insertPublishEvent(db, {
+      tenantId,
+      projectId,
+      userId,
+      provider: project.provider,
+      branch: project.branch,
+      commitSha: null,
+      message,
+      files: publishable.map((draft) => draft.filePath),
+      status: 'failed',
+      errorCode: failure.code,
+      errorSummary: failure.summary,
+    });
+    throw new Error(failure.summary);
+  }
+
+  revalidateProject(projectId);
+}
+
+export async function stageContentDeletion(projectId: string, path: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const cachedRows = await db
+    .select({ sha: plainwriteFileCache.sha })
+    .from(plainwriteFileCache)
+    .where(
+      and(
+        eq(plainwriteFileCache.tenantId, tenantId),
+        eq(plainwriteFileCache.projectId, projectId),
+        eq(plainwriteFileCache.path, path),
+      ),
+    )
+    .limit(1);
+  const baseSha = cachedRows[0]?.sha;
+  if (!baseSha) throw new Error('Sync this file before staging deletion.');
+
+  const ts = now();
+  const existing = await getCurrentUserDraft(db, tenantId, projectId, path, userId);
+  if (existing) {
+    await db
+      .update(plainwriteDrafts)
+      .set({
+        content: null,
+        status: 'committed',
+        commitMessage: `Delete ${path.split('/').at(-1) ?? path}`,
+        baseSha,
+        committedAt: ts,
+        updatedAt: ts,
+      })
+      .where(eq(plainwriteDrafts.id, existing.id));
+  } else {
+    await db.insert(plainwriteDrafts).values({
+      id: randomUUID(),
+      tenantId,
+      projectId,
+      filePath: path,
+      userId,
+      content: null,
+      status: 'committed',
+      commitMessage: `Delete ${path.split('/').at(-1) ?? path}`,
+      baseSha,
+      committedAt: ts,
+      publishedAt: null,
+      createdAt: ts,
+      updatedAt: ts,
+    });
+  }
+
+  revalidateProject(projectId);
+}
+
+export async function updateCollectionSchema(projectId: string, collection: string, formData: FormData) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  const fields = schemaFieldsFromForm(formData);
+  await upsertCollectionSchema(db, tenantId, projectId, collection, fields, null, userId);
+  revalidateProject(projectId);
+}
+
+export async function resetCollectionSchema(projectId: string, collection: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (project.isPrivate && !credential.token) {
+    throw new Error('Connect a GitHub token before resetting schemas for a private repository.');
+  }
+  await inferAndUpsertCollectionSchema(db, tenantId, project, credential.token, collection, true);
+  revalidateProject(projectId);
 }
 
 export async function discardDraft(projectId: string, path: string) {
@@ -1026,6 +1270,136 @@ async function refreshProjectContentCache(
         lastSyncedAt: ts,
       })),
     );
+  }
+
+  await inferMissingCollectionSchemas(db, tenantId, project, token, files);
+}
+
+async function inferMissingCollectionSchemas(
+  db: Db,
+  tenantId: string,
+  project: PlainwriteProject,
+  token: string | null,
+  files: ContentFile[],
+) {
+  const collections = [...new Set(files.map((file) => file.collection ?? 'Root'))];
+  await Promise.all(
+    collections.map(async (collection) => {
+      const existing = await getCollectionSchema(db, tenantId, project.id, collection);
+      if (existing?.updatedBy) return;
+      if (existing && existing.schemaJson !== '[]') return;
+      try {
+        await inferAndUpsertCollectionSchema(db, tenantId, project, token, collection, false, files);
+      } catch {
+        // Schema inference is best-effort and should not block repository sync.
+      }
+    }),
+  );
+}
+
+async function inferAndUpsertCollectionSchema(
+  db: Db,
+  tenantId: string,
+  project: PlainwriteProject,
+  token: string | null,
+  collection: string,
+  overwriteManual: boolean,
+  knownFiles?: ContentFile[],
+) {
+  const existing = await getCollectionSchema(db, tenantId, project.id, collection);
+  if (existing?.updatedBy && !overwriteManual) return;
+
+  const provider = getGitProvider(project.provider);
+  const files =
+    knownFiles ??
+    (await db
+      .select()
+      .from(plainwriteFileCache)
+      .where(
+        and(
+          eq(plainwriteFileCache.tenantId, tenantId),
+          eq(plainwriteFileCache.projectId, project.id),
+        ),
+      ));
+  const samples = files
+    .filter((file) => (file.collection ?? 'Root') === collection)
+    .slice(0, 5);
+  const contents = (
+    await Promise.all(
+      samples.map(async (file) => {
+        try {
+          const remote = await provider.getFileContent(project, file.path, { token });
+          return remote.content;
+        } catch {
+          return null;
+        }
+      }),
+    )
+  ).filter((content): content is string => content !== null);
+  const fields = inferCollectionSchema(contents);
+  await upsertCollectionSchema(db, tenantId, project.id, collection, fields, now(), null);
+}
+
+async function getCollectionSchema(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  collection: string,
+): Promise<PlainwriteCollectionSchema | null> {
+  const rows = await db
+    .select()
+    .from(plainwriteCollectionSchemas)
+    .where(
+      and(
+        eq(plainwriteCollectionSchemas.tenantId, tenantId),
+        eq(plainwriteCollectionSchemas.projectId, projectId),
+        eq(plainwriteCollectionSchemas.collection, collection),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+async function upsertCollectionSchema(
+  db: Db,
+  tenantId: string,
+  projectId: string,
+  collection: string,
+  fields: CollectionSchemaField[],
+  inferredAt: number | null,
+  updatedBy: string | null,
+) {
+  const ts = now();
+  const existing = await getCollectionSchema(db, tenantId, projectId, collection);
+  const values = {
+    schemaJson: serializeSchemaFields(fields),
+    inferredAt,
+    updatedAt: ts,
+    updatedBy,
+  };
+
+  if (existing) {
+    await db
+      .update(plainwriteCollectionSchemas)
+      .set(values)
+      .where(eq(plainwriteCollectionSchemas.id, existing.id));
+    return;
+  }
+
+  await db.insert(plainwriteCollectionSchemas).values({
+    id: randomUUID(),
+    tenantId,
+    projectId,
+    collection,
+    ...values,
+  });
+}
+
+function safeParseSchema(row: PlainwriteCollectionSchema): CollectionSchemaField[] {
+  try {
+    return parseSchemaJson(row.schemaJson);
+  } catch {
+    return [];
   }
 }
 

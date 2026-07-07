@@ -7,8 +7,11 @@ import {
   getProject,
   hardDeleteProject,
   inviteProjectMember,
+  listCollectionSchemas,
   removeProjectMember,
+  resetCollectionSchema,
   restoreProject,
+  updateCollectionSchema,
   updateProjectSettings,
 } from '../../_lib/actions';
 import { canEditProject, canManageProject } from '../../_lib/project-rules';
@@ -20,7 +23,10 @@ interface SettingsPageProps {
 
 export default async function ProjectSettingsPage({ params }: SettingsPageProps) {
   const { projectId } = await params;
-  const project = await getProject(projectId).catch(() => null);
+  const [project, schemas] = await Promise.all([
+    getProject(projectId).catch(() => null),
+    listCollectionSchemas(projectId).catch(() => []),
+  ]);
   if (!project) notFound();
   const userCanEdit = canEditProject(project.currentUserRole);
   const userCanManage = canManageProject(project.currentUserRole);
@@ -164,6 +170,85 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
           </div>
         ) : (
           <p className={styles.helpText}>Viewers cannot connect publishing credentials.</p>
+        )}
+      </section>
+
+      <section className={styles.panel} aria-labelledby="collection-schemas">
+        <div className={styles.panelHeader}>
+          <div>
+            <h2 id="collection-schemas">Collection schemas</h2>
+            <p className={styles.panelDescription}>
+              Inferred frontmatter fields stay editable by project owners.
+            </p>
+          </div>
+          <StatusBadge status={schemas.length > 0 ? 'synced' : 'warning'}>
+            {schemas.length > 0 ? `${schemas.length} collections` : 'Not inferred'}
+          </StatusBadge>
+        </div>
+
+        {schemas.length > 0 ? (
+          <div className={styles.schemaList}>
+            {schemas.map((schema) => (
+              <form
+                key={schema.collection}
+                action={updateCollectionSchema.bind(null, project.id, schema.collection)}
+                className={styles.schemaCard}
+              >
+                <div className={styles.panelHeader}>
+                  <div>
+                    <h3>{schema.collection}</h3>
+                    <p className={styles.panelDescription}>
+                      {schema.isManual ? 'Manual schema' : 'Inferred schema'}
+                    </p>
+                  </div>
+                  {userCanManage ? (
+                    <button
+                      type="submit"
+                      formAction={resetCollectionSchema.bind(null, project.id, schema.collection)}
+                      className={styles.secondaryButton}
+                    >
+                      Reset
+                    </button>
+                  ) : null}
+                </div>
+                <div className={styles.schemaFields}>
+                  {[...schema.fields, { name: '', type: 'string' as const, required: false }].map(
+                    (field, index) => (
+                      <div key={`${schema.collection}-${index}`} className={styles.schemaField}>
+                        <label>
+                          <span>Name</span>
+                          <input name="fieldName" defaultValue={field.name} disabled={!userCanManage} />
+                        </label>
+                        <label>
+                          <span>Type</span>
+                          <select name="fieldType" defaultValue={field.type} disabled={!userCanManage}>
+                            <option value="string">Text</option>
+                            <option value="date">Date</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Toggle</option>
+                            <option value="array">Tags</option>
+                          </select>
+                        </label>
+                        <label className={styles.checkbox}>
+                          <input
+                            name="fieldRequired"
+                            value={String(index)}
+                            type="checkbox"
+                            defaultChecked={field.required}
+                            disabled={!userCanManage}
+                          />
+                          <span>Required</span>
+                        </label>
+                      </div>
+                    ),
+                  )}
+                </div>
+                {userCanManage ? <button type="submit">Save schema</button> : null}
+              </form>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.helpText}>Run content sync to infer schemas from existing files.</p>
         )}
       </section>
 
