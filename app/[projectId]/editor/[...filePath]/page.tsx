@@ -69,6 +69,7 @@ export default async function EditorPage({ params }: EditorPageProps) {
             status={editor.status}
             commitMessage={editor.commitMessage}
             userCanEdit={userCanEdit}
+            schemaFields={editor.schemaFields}
             saveAction={saveDraft.bind(null, projectId, path)}
             commitAction={commitDraft.bind(null, projectId, path)}
             publishAction={publishCommittedDraft.bind(null, projectId, path)}

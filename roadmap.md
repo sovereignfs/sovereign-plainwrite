@@ -280,15 +280,13 @@ Verification:
 - Add integration tests for sync/cache behavior with mocked provider responses.
 - Run typecheck and tests.
 
-### PLW-006 Implement Editor, Drafts, And Sanitized Preview
+### ✅ PLW-006 Implement Editor, Drafts, And Sanitized Preview
 
 **Spec refs:** PLW-11 through PLW-20.
 
-**Status:** Partial. Existing/new-file editing, local draft state, raw YAML
-frontmatter editing, and sanitized preview are implemented; structured schema
-fields, staged deletion, autosave, and remote publish remain.
+**Status:** ✅ Complete.
 
-Progress as of 2026-07-07:
+Progress as of 2026-07-07, remainder completed 2026-07-10:
 
 - [x] Editor opens provider content unless the current user has an active
   `draft` or `committed` draft.
@@ -310,11 +308,25 @@ Progress as of 2026-07-07:
 - [x] Add staged deletion drafts with `content: null` (delivered under
   PLW-008's `stageContentDeletion`/publish-all scope; unchecked here by
   oversight — no PLW-006-specific work remained).
-- [ ] Parse and serialize frontmatter with `gray-matter` or a schema-aware YAML
-  parser once structured fields are implemented.
-- [ ] Add structured frontmatter fields and raw YAML toggle.
-- [ ] Add autosave after idle typing.
-- [ ] Add editor lifecycle integration tests.
+- [x] Parse and serialize frontmatter with `gray-matter` (`editor-rules.ts`'s
+  `parseMarkdownDocument` now parses via gray-matter instead of a hand-rolled
+  regex, matching what `schema-rules.ts` already used for schema inference).
+- [x] Add structured frontmatter fields and raw YAML toggle. `getEditorState`
+  resolves the file's collection schema and returns `schemaFields`;
+  `MarkdownEditor` renders one typed control per field (`Input`/`Checkbox`/
+  `TagInput`/date `Input`) via a `SegmentedControl` "Structured"/"Raw YAML"
+  toggle, defaulting to structured when a schema exists. Fields outside the
+  schema round-trip untouched. Raw YAML text stays the single source of
+  truth; structured edits write back into it immediately.
+- [x] Add autosave after idle typing (2s debounce, same `saveAction` the
+  manual "Save draft" button uses). Tracks a `lastSaved` baseline (not the
+  originally-loaded content) so autosave correctly clears the dirty/
+  `beforeunload` flag instead of re-triggering itself.
+- [x] Add editor lifecycle integration tests —
+  `app/_lib/__tests__/actions-editor-lifecycle.test.ts` covers open (no
+  draft) → save → reopen (shows draft) → commit → reopen (shows committed) →
+  discard → reopen (back to provider content), plus a published-draft-is-
+  ignored-on-reopen case and `schemaFields` population.
 
 Build the editing workflow through local draft commit state, without remote
 publishing yet.

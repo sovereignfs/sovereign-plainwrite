@@ -1,18 +1,46 @@
+import matter from 'gray-matter';
+
 export interface MarkdownDocument {
   frontmatterYaml: string;
+  /** Parsed frontmatter, keyed by field name. Empty object when frontmatter is empty or invalid. */
+  data: Record<string, unknown>;
   body: string;
 }
 
+/**
+ * Parses via gray-matter (same library `schema-rules.ts` uses for schema
+ * inference) so the live editor and schema inference agree on what "the
+ * frontmatter" means for a file — including YAML edge cases (quoting,
+ * multi-line values, `---` inside strings) a hand-rolled regex would miss.
+ * Invalid YAML falls back to an empty `data` object rather than throwing —
+ * the raw `frontmatterYaml` text is preserved untouched either way, so
+ * nothing is lost, structured-field rendering just can't populate from it.
+ */
 export function parseMarkdownDocument(content: string): MarkdownDocument {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
-  if (!match) {
-    return { frontmatterYaml: '', body: content };
+  try {
+    const parsed = matter(content);
+    return {
+      frontmatterYaml: (parsed.matter ?? '').trim(),
+      data: (parsed.data ?? {}) as Record<string, unknown>,
+      body: parsed.content.replace(/^\r?\n/, ''),
+    };
+  } catch {
+    return { frontmatterYaml: '', data: {}, body: content };
   }
+}
 
-  return {
-    frontmatterYaml: match[1]?.trim() ?? '',
-    body: content.slice(match[0]?.length ?? 0).replace(/^\r?\n/, ''),
-  };
+/**
+ * Serializes a structured-field data object back into raw YAML text (no
+ * `---` fences) for the raw-YAML source of truth. Preserves any keys not
+ * covered by the collection schema — structured-mode editing only touches
+ * schema-known fields, so unrecognized frontmatter must round-trip
+ * unchanged rather than being silently dropped.
+ */
+export function serializeStructuredFrontmatter(data: Record<string, unknown>): string {
+  const entries = Object.entries(data).filter(([, value]) => value !== undefined);
+  if (entries.length === 0) return '';
+  const doc = matter.stringify('', Object.fromEntries(entries));
+  return (matter(doc).matter ?? '').trim();
 }
 
 export function serializeMarkdownDocument(frontmatterYaml: string, body: string) {

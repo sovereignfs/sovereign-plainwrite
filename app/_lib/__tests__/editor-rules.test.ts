@@ -4,6 +4,7 @@ import {
   parseMarkdownDocument,
   renderSafeMarkdownPreview,
   serializeMarkdownDocument,
+  serializeStructuredFrontmatter,
   slugifyFilename,
 } from '../editor-rules';
 
@@ -13,11 +14,64 @@ describe('editor rules', () => {
 
     expect(parsed).toEqual({
       frontmatterYaml: 'title: Hello\ndraft: false',
+      data: { title: 'Hello', draft: false },
       body: '# Hello\nBody',
     });
     expect(serializeMarkdownDocument(parsed.frontmatterYaml, parsed.body)).toBe(
       '---\ntitle: Hello\ndraft: false\n---\n\n# Hello\nBody',
     );
+  });
+
+  it('parses content with no frontmatter as empty data and unchanged body', () => {
+    expect(parseMarkdownDocument('Just a plain doc.')).toEqual({
+      frontmatterYaml: '',
+      data: {},
+      body: 'Just a plain doc.',
+    });
+  });
+
+  it('falls back to the raw content (not a throw) on unparseable YAML', () => {
+    // gray-matter itself throws on this — the fallback must never lose the
+    // user's text, so the whole original document (frontmatter block
+    // included) becomes the body rather than being discarded.
+    const invalid = '---\ntitle: ["unterminated\n---\n\nBody';
+    const parsed = parseMarkdownDocument(invalid);
+
+    expect(parsed.frontmatterYaml).toBe('');
+    expect(parsed.data).toEqual({});
+    expect(parsed.body).toBe(invalid);
+  });
+
+  it('round-trips structured field edits back into raw YAML text', () => {
+    const yaml = serializeStructuredFrontmatter({
+      title: 'Updated title',
+      tags: ['news', 'launch'],
+      published: true,
+    });
+
+    expect(parseMarkdownDocument(`---\n${yaml}\n---\n\nBody`).data).toEqual({
+      title: 'Updated title',
+      tags: ['news', 'launch'],
+      published: true,
+    });
+  });
+
+  it('preserves fields not covered by structured editing when round-tripping', () => {
+    // A field the schema doesn't know about (e.g. "customKey") must survive
+    // a structured-mode edit unchanged, not get silently dropped.
+    const yaml = serializeStructuredFrontmatter({ title: 'Hi', customKey: 'keep-me' });
+
+    expect(yaml).toContain('customKey: keep-me');
+  });
+
+  it('omits undefined field values instead of serializing them as null', () => {
+    const yaml = serializeStructuredFrontmatter({ title: 'Hi', optional: undefined });
+
+    expect(yaml).not.toContain('optional');
+  });
+
+  it('returns an empty string for an empty data object', () => {
+    expect(serializeStructuredFrontmatter({})).toBe('');
   });
 
   it('builds collection-aware content paths with slugified filenames', () => {

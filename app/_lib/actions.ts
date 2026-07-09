@@ -128,6 +128,12 @@ interface EditorState {
    * remote file with placeholder content.
    */
   loadError: string | null;
+  /**
+   * The collection schema fields for this file's inferred collection, if
+   * any have been defined (inferred or manual). Empty array means "no
+   * schema" — the editor falls back to raw-YAML-only editing.
+   */
+  schemaFields: CollectionSchemaField[];
 }
 
 interface PublishEventSummary {
@@ -498,6 +504,10 @@ export async function getEditorState(projectId: string, path: string): Promise<E
   const project = await getProjectRow(db, tenantId, projectId);
   assertContentPathAllowed(project, path);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  const adapter = getSsgAdapter(project.ssgType);
+  const collection = adapter.inferCollection(path, project.pathPrefix) ?? 'Root';
+  const collectionSchema = await getCollectionSchema(db, tenantId, project.id, collection);
+  const schemaFields = collectionSchema ? safeParseSchema(collectionSchema) : [];
 
   const draftRows = await db
     .select()
@@ -523,6 +533,7 @@ export async function getEditorState(projectId: string, path: string): Promise<E
       commitMessage: draft.commitMessage,
       currentUserRole,
       loadError: null,
+      schemaFields,
     };
   }
 
@@ -549,6 +560,7 @@ export async function getEditorState(projectId: string, path: string): Promise<E
       commitMessage: null,
       currentUserRole,
       loadError: 'Connect a GitHub token before opening private repository content.',
+      schemaFields,
     };
   }
 
@@ -564,6 +576,7 @@ export async function getEditorState(projectId: string, path: string): Promise<E
       commitMessage: null,
       currentUserRole,
       loadError: null,
+      schemaFields,
     };
   } catch (error) {
     if (error instanceof GitProviderError && error.notFound) {
@@ -576,6 +589,7 @@ export async function getEditorState(projectId: string, path: string): Promise<E
         commitMessage: null,
         currentUserRole,
         loadError: null,
+        schemaFields,
       };
     }
 
@@ -593,6 +607,7 @@ export async function getEditorState(projectId: string, path: string): Promise<E
       commitMessage: null,
       currentUserRole,
       loadError: message,
+      schemaFields,
     };
   }
 }

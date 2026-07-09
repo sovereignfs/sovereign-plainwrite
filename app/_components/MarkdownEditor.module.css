@@ -60,6 +60,10 @@
   color: var(--sv-color-text-secondary);
 }
 
+.autosaveStatus[role='alert'] {
+  color: var(--sv-color-warning-text);
+}
+
 .actions {
   display: grid;
   gap: var(--sv-space-2);
