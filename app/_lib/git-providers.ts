@@ -280,14 +280,34 @@ class GitHubProvider implements GitProviderAdapter {
     );
     if (!nextCommit.sha) throw new Error('GitHub commit response did not include a SHA.');
 
-    await fetchGitHubJson<{ object?: { sha?: string } }>(
-      `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/refs/${encodeURIComponent(branchRef)}`,
-      credential.token,
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ sha: nextCommit.sha, force: false }),
-      },
-    );
+    // The per-file SHA checks in assertNoPublishConflict (actions.ts) run
+    // before this call and only narrow the race window — GitHub's tree API
+    // has no per-blob compare-and-swap. The real guarantee is here:
+    // `force: false` makes this PATCH a fast-forward-only ref update, so it
+    // is atomically rejected if *any* commit (from this project or a direct
+    // push) landed on the branch after `parentSha` was read above, whether
+    // or not it touched the same files. Re-classify that rejection as a
+    // conflict rather than the generic per-status-code GitHub error text,
+    // since a stale `parentSha` is exactly what "conflict" means here and a
+    // "protected branch" message would send the user down the wrong path.
+    try {
+      await fetchGitHubJson<{ object?: { sha?: string } }>(
+        `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/refs/${encodeURIComponent(branchRef)}`,
+        credential.token,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ sha: nextCommit.sha, force: false }),
+        },
+      );
+    } catch (error) {
+      if (error instanceof GitProviderError && (error.status === 422 || error.status === 409)) {
+        throw new GitProviderError(
+          'Conflict: the branch changed since this publish started. Sync and try again.',
+          error.status,
+        );
+      }
+      throw error;
+    }
 
     return {
       commitSha: nextCommit.sha,

@@ -23,7 +23,7 @@ import {
 } from '../_db/schema';
 import { defaultMarkdownTemplate, type ContentFile } from './content-rules';
 import { buildContentFilePath } from './editor-rules';
-import { getGitProvider, GitProviderError } from './git-providers';
+import { getGitProvider, GitProviderError, type GitPublishResult } from './git-providers';
 import { buildGitHubOAuthUrl, exchangeGitHubOAuthCode } from './oauth-rules';
 import {
   assertProjectRole,
@@ -734,8 +734,9 @@ export async function publishAllCommittedDrafts(projectId: string, formData: For
     `Publish ${publishable.length} ${publishable.length === 1 ? 'file' : 'files'}`;
   const adapter = getSsgAdapter(project.ssgType);
 
+  let result: GitPublishResult;
   try {
-    const result = await provider.publishFiles(
+    result = await provider.publishFiles(
       project,
       publishable.map((draft) => ({
         path: draft.filePath,
@@ -747,43 +748,6 @@ export async function publishAllCommittedDrafts(projectId: string, formData: For
       message,
       { token: credential.token },
     );
-    const ts = now();
-    await Promise.all(
-      publishable.map(async (draft) => {
-        await db
-          .update(plainwriteDrafts)
-          .set({ status: 'published', publishedAt: ts, updatedAt: ts })
-          .where(eq(plainwriteDrafts.id, draft.id));
-
-        if (draft.content === null) {
-          await deleteFileCache(db, tenantId, project.id, draft.filePath);
-          return;
-        }
-
-        const contentSha = result.contentShas?.[draft.filePath];
-        if (contentSha) {
-          await upsertFileCache(db, tenantId, project, {
-            path: draft.filePath,
-            sha: contentSha,
-            collection: adapter.inferCollection(draft.filePath, project.pathPrefix),
-          });
-        }
-      }),
-    );
-
-    await insertPublishEvent(db, {
-      tenantId,
-      projectId,
-      userId,
-      provider: project.provider,
-      branch: project.branch,
-      commitSha: result.commitSha,
-      message,
-      files: publishable.map((draft) => draft.filePath),
-      status: 'success',
-      errorCode: conflicts.length > 0 ? 'conflicts_skipped' : null,
-      errorSummary: conflicts.length > 0 ? `Skipped conflicts: ${conflicts.join('; ')}` : null,
-    });
   } catch (error) {
     const failure = classifyPublishFailure(error);
     await insertPublishEvent(db, {
@@ -801,6 +765,65 @@ export async function publishAllCommittedDrafts(projectId: string, formData: For
     });
     throw new Error(failure.summary);
   }
+
+  // The GitHub commit above has already landed — from here on, a failure
+  // updating our own bookkeeping must never be reported as a failed publish
+  // (that would tell the user to retry, and retrying would create a second,
+  // conflicting commit for content that's already published). Run each
+  // draft's local update independently so one failure can't leave the rest
+  // stuck mid-Promise.all, and always record the publish event as a success,
+  // surfacing which files had a bookkeeping failure if any did.
+  const ts = now();
+  const bookkeepingFailures: string[] = [];
+  for (const draft of publishable) {
+    try {
+      await db
+        .update(plainwriteDrafts)
+        .set({ status: 'published', publishedAt: ts, updatedAt: ts })
+        .where(eq(plainwriteDrafts.id, draft.id));
+
+      if (draft.content === null) {
+        await deleteFileCache(db, tenantId, project.id, draft.filePath);
+      } else {
+        const contentSha = result.contentShas?.[draft.filePath];
+        if (contentSha) {
+          await upsertFileCache(db, tenantId, project, {
+            path: draft.filePath,
+            sha: contentSha,
+            collection: adapter.inferCollection(draft.filePath, project.pathPrefix),
+          });
+        }
+      }
+    } catch (error) {
+      bookkeepingFailures.push(`${draft.filePath}: ${sanitizePublishError(error)}`);
+    }
+  }
+
+  const notes = [
+    conflicts.length > 0 ? `Skipped conflicts: ${conflicts.join('; ')}` : null,
+    bookkeepingFailures.length > 0
+      ? `Published to GitHub, but local status update failed for: ${bookkeepingFailures.join('; ')}. Reopen and re-save these files if their status looks stale.`
+      : null,
+  ].filter((note): note is string => note !== null);
+
+  await insertPublishEvent(db, {
+    tenantId,
+    projectId,
+    userId,
+    provider: project.provider,
+    branch: project.branch,
+    commitSha: result.commitSha,
+    message,
+    files: publishable.map((draft) => draft.filePath),
+    status: 'success',
+    errorCode:
+      bookkeepingFailures.length > 0
+        ? 'partial_bookkeeping_failure'
+        : conflicts.length > 0
+          ? 'conflicts_skipped'
+          : null,
+    errorSummary: notes.length > 0 ? notes.join(' ') : null,
+  });
 
   revalidateProject(projectId);
 }

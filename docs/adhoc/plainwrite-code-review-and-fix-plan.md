@@ -206,16 +206,44 @@ rate-limit vs not-found).
 | 4 | `fix/path-scope-enforcement` | P2-1: pathPrefix + extension + `..` validation across editor state, drafts, publish. Tests. (Pull-forward slice of PLW-017.) | patch | ✅ done |
 | 5 | `chore/manifest-permission-trim` | P2-2: trim manifest to used permissions. OAuth provider block kept as-is — PLW-009 landed since the review, so it's no longer dead. Note in roadmap PLW-010. | none (manifest change — re-validate against platform schema) | ✅ done |
 | 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch | ✅ done |
+| 6a | `fix/publish-all-bookkeeping-and-conflict` | Two P1s from a follow-up review after PLW-008/009 merged (see below). | patch | ✅ done |
 | 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | pending |
 | 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | pending |
 | 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | pending |
 
 Items P3-8/9/10 ride along where they fit or wait for DS Phase B / PLW-017.
 
-Two additional P1s surfaced in a follow-up review after PLW-008/009 merged (publish-all
-partial-failure drift on the per-draft DB update after a successful GitHub commit, and a
-TOCTOU window in the pre-publish conflict check) — not yet in this table's numbered order;
-pick up after item 6 unless reprioritized.
+**Item 6a detail — two P1s surfaced in a follow-up review after PLW-008/009
+merged:**
+
+- **Publish-all partial-failure drift.** After `provider.publishFiles`
+  successfully commits to GitHub, the per-draft local bookkeeping
+  (`plainwrite_drafts` → `published`, file cache upsert) ran inside a single
+  `Promise.all` under the same `try`. If one draft's DB update failed, the
+  whole `Promise.all` rejected, and the `catch` block recorded a *failed*
+  publish event and rethrew — even though GitHub already had the commit.
+  The user was told to retry, which would have created a second, conflicting
+  commit for content already published. **Fix:** the GitHub call and the
+  local bookkeeping are now in separate try blocks; bookkeeping runs as a
+  sequential loop with a per-draft try/catch, and the publish event is always
+  recorded as `success` once the GitHub commit lands, with a
+  `partial_bookkeeping_failure` error code/summary listing any files whose
+  local status update failed (rather than a silent or misleading failure).
+- **TOCTOU window in the pre-publish conflict check** (previously described
+  as "no protection" — on closer look, GitHub does provide a coarse-grained
+  guarantee here). The per-file SHA pre-check in `assertNoPublishConflict`
+  only narrows the race window; GitHub's tree API has no per-blob
+  compare-and-swap. The actual atomicity guarantee is the final ref-update
+  PATCH's `force: false`, which rejects *any* intervening commit on the
+  branch as a non-fast-forward update — it just wasn't being classified as a
+  conflict. Publish-all failures from that specific PATCH call were falling
+  through to the generic per-status-code GitHub error text (a 422 read as
+  "protected branch"), misleading users about what actually happened.
+  **Fix:** that PATCH call's 422/409 failures are now re-thrown as an
+  explicit conflict message ("the branch changed since this publish
+  started"), which `classifyPublishFailure` correctly tags `conflict`. Also
+  documented the actual (whole-ref, not per-file) atomicity guarantee in
+  code comments so a future reader doesn't need to rediscover it.
 
 ## Verification per task
 

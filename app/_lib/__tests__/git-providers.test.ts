@@ -280,6 +280,38 @@ describe('GitHubProvider — tree, validation, and publish', () => {
     });
   });
 
+  it.each([422, 409])(
+    'classifies a non-fast-forward ref update (%s) as a conflict, not a generic branch error',
+    async (status) => {
+      const { impl } = queueFetch([
+        { ok: true, status: 200, body: { object: { sha: 'parent-commit-sha' } } },
+        { ok: true, status: 200, body: { tree: { sha: 'base-tree-sha' } } },
+        { ok: true, status: 201, body: { sha: 'blob-sha' } },
+        { ok: true, status: 201, body: { sha: 'next-tree-sha' } },
+        { ok: true, status: 201, body: { sha: 'next-commit-sha' } },
+        // Someone else's commit landed on the branch in the meantime — the
+        // fast-forward-only PATCH is rejected.
+        { ok: false, status, body: { message: 'Update is not a fast forward' } },
+      ]);
+      global.fetch = impl;
+      const provider = getGitProvider('github');
+
+      const error = await provider
+        .publishFiles(
+          project,
+          [{ path: 'docs/hello.md', action: 'update', content: 'hello', baseSha: 'old-sha', message: null }],
+          'Publish 1 file',
+          { token: 'test-token' },
+        )
+        .catch((err: unknown) => err);
+
+      expect(error).toBeInstanceOf(GitProviderError);
+      expect((error as GitProviderError).message).toContain(
+        'the branch changed since this publish started',
+      );
+    },
+  );
+
   it.each([
     [409, 'GitHub rejected the publish because the remote file changed.'],
     [422, 'GitHub rejected the publish request for this branch or file.'],
