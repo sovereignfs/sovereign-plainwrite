@@ -307,7 +307,9 @@ Progress as of 2026-07-07:
 - [x] Add sanitized Markdown preview with raw HTML and MDX execution disabled.
 - [x] Add editor helper tests for frontmatter parsing, slug generation, path
   generation, and preview escaping.
-- [ ] Add staged deletion drafts with `content: null`.
+- [x] Add staged deletion drafts with `content: null` (delivered under
+  PLW-008's `stageContentDeletion`/publish-all scope; unchecked here by
+  oversight — no PLW-006-specific work remained).
 - [ ] Parse and serialize frontmatter with `gray-matter` or a schema-aware YAML
   parser once structured fields are implemented.
 - [ ] Add structured frontmatter fields and raw YAML toggle.
