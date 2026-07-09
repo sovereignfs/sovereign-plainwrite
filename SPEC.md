@@ -468,41 +468,35 @@ sovereign-plainwrite/
 │   │   └── github/
 │   │       └── callback/
 │   │           └── route.ts          # OAuth callback — verifies sdk.connections state
-│   └── [projectId]/
-│       ├── page.tsx                  # File listing + collection navigation
-│       ├── settings/
-│       │   └── page.tsx              # Project settings, member management, schema editor
-│       └── editor/
-│           └── [...filePath]/
-│               └── page.tsx          # Editor view (frontmatter + body)
+│   ├── [projectId]/
+│   │   ├── page.tsx                  # File listing + collection navigation
+│   │   ├── settings/
+│   │   │   └── page.tsx              # Project settings, member management, schema editor
+│   │   └── editor/
+│   │       └── [...filePath]/
+│   │           └── page.tsx          # Editor view (frontmatter + body)
+│   ├── _lib/                         # Server logic — see note below on why this lives under app/
+│   │   ├── actions.ts                # Server actions: project, draft, publish, credential, schema
+│   │   ├── git-providers.ts          # GitProviderAdapter interface + GitHub provider (github.com + GHE)
+│   │   ├── ssg-adapters.ts           # SsgAdapter interface + Astro adapter (Jekyll/custom in v0.2+)
+│   │   ├── project-rules.ts          # Role checks, repo URL parsing, project input defaults
+│   │   ├── editor-rules.ts           # Frontmatter parse/serialize, slug/path generation, preview
+│   │   ├── content-rules.ts          # Content file grouping, new-file template
+│   │   ├── schema-rules.ts           # Collection schema inference + manual field normalization
+│   │   └── oauth-rules.ts            # sdk.connections OAuth URL + token exchange helpers
+│   └── _components/                  # Client components (editor, sidebar, dialogs)
 ├── db/
 │   └── schema.ts                     # all plainwrite_* tables
 ├── migrations/
-├── components/
-│   ├── FileTree.tsx                  # Collection/file listing with status badges
-│   ├── FrontmatterForm.tsx           # Structured frontmatter inputs
-│   ├── FrontmatterYaml.tsx           # Raw YAML textarea (toggle view)
-│   ├── MarkdownEditor.tsx            # Split-pane markdown editor + preview
-│   ├── CommitPanel.tsx               # Commit message input + Commit/Publish buttons
-│   ├── ConflictWarning.tsx           # Conflict detected banner + options
-│   └── SchemaSetting.tsx             # Collection schema editor in settings
-├── lib/
-│   ├── providers/
-│   │   ├── types.ts                  # GitProviderAdapter interface + shared types
-│   │   ├── github.ts                 # GitHub provider (github.com + GHE)
-│   │   ├── gitlab.ts                 # GitLab provider (v0.2+; placeholder in v0.1)
-│   │   └── index.ts                  # getProvider(project) factory
-│   ├── ssg/
-│   │   ├── types.ts                  # SsgAdapter interface + shared types
-│   │   ├── astro.ts                  # Astro adapter
-│   │   ├── jekyll.ts                 # Jekyll adapter (v0.2+; placeholder in v0.1)
-│   │   └── index.ts                  # getAdapter(project) factory
-│   ├── frontmatter.ts                # Parse/serialize frontmatter via gray-matter
-│   ├── schema-infer.ts               # Auto-detect collection schema from file samples
-│   ├── oauth.ts                      # OAuth provider URL + token exchange helpers
-│   └── secrets.ts                    # sdk.secrets helpers; no plugin-local token storage
 └── package.json
 ```
+
+**Why server logic lives under `app/_lib/` instead of a top-level `lib/`:** the Sovereign
+runtime mounts the plugin's `app/` tree into Next.js routes; server actions and
+route handlers must not import runtime query helpers (`app/_db/schema.ts`) from
+outside that mounted tree. A top-level `lib/` directory was scaffolded early
+(PLW-001) before this constraint was confirmed and has since been removed —
+`app/_lib/` and `app/_db/` are the only locations for plugin server code.
 
 **Key dependency:** `gray-matter` — de-facto standard for parsing YAML/TOML
 frontmatter from Markdown files. No viable alternative with the same feature set

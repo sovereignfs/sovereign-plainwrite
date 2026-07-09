@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { AstroAdapter } from '../ssg/astro';
-import type { TreeEntry } from '../providers/types';
+import { getSsgAdapter } from '../ssg-adapters';
+import type { GitTreeEntry } from '../git-providers';
 
-const tree: TreeEntry[] = [
+const tree: GitTreeEntry[] = [
   { path: 'src/content/blog/hello-world.md', type: 'file', sha: 'sha-blog' },
   { path: 'src/content/articles/deep-dive.mdx', type: 'file', sha: 'sha-article' },
   { path: 'src/content/root-page.md', type: 'file', sha: 'sha-root' },
@@ -11,9 +11,9 @@ const tree: TreeEntry[] = [
   { path: 'src/pages/about.md', type: 'file', sha: 'sha-page' },
 ];
 
-describe('AstroAdapter', () => {
+describe('Astro adapter', () => {
   it('discovers Markdown and MDX files under the configured path prefix', () => {
-    const adapter = new AstroAdapter();
+    const adapter = getSsgAdapter('astro');
 
     expect(adapter.discoverContent(tree, 'src/content')).toEqual([
       {
@@ -38,17 +38,21 @@ describe('AstroAdapter', () => {
   });
 
   it('treats files directly inside the path prefix as root content', () => {
-    const adapter = new AstroAdapter();
+    const adapter = getSsgAdapter('astro');
 
     expect(adapter.inferCollection('src/content/root-page.md', 'src/content')).toBeNull();
-    expect(adapter.inferCollection('src/content/blog/hello-world.md', 'src/content')).toBe(
-      'blog',
-    );
+    expect(adapter.inferCollection('src/content/blog/hello-world.md', 'src/content')).toBe('blog');
   });
 
   it('normalizes slash-wrapped path prefixes', () => {
-    const adapter = new AstroAdapter();
+    const adapter = getSsgAdapter('astro');
 
     expect(adapter.discoverContent(tree, '/src/content/')).toHaveLength(3);
+  });
+});
+
+describe('getSsgAdapter', () => {
+  it('throws for an unimplemented SSG type', () => {
+    expect(() => getSsgAdapter('jekyll')).toThrow('SSG adapter "jekyll" is not implemented yet.');
   });
 });
