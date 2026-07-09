@@ -6,6 +6,8 @@ import {
   getProject,
   listContentFiles,
   listPublishEvents,
+  publishAllCommittedDrafts,
+  stageContentDeletion,
   syncProjectContent,
 } from '../_lib/actions';
 import { groupContentFiles } from '../_lib/content-rules';
@@ -29,6 +31,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const metadataLabel = formatMetadataVisibility(project.metadataVisibility);
   const repositoryLabel = `${project.repoOwner}/${project.repoName}`;
   const contentGroups = groupContentFiles(contentFiles);
+  const committedCount = contentFiles.filter((file) => file.status === 'committed').length;
 
   return (
     <div className={styles.page}>
@@ -117,6 +120,17 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               <button type="submit">Sync content</button>
             </form>
           ) : null}
+          {userCanEdit ? (
+            <form action={publishAllCommittedDrafts.bind(null, projectId)} className={styles.publishAllForm}>
+              <label>
+                <input type="checkbox" name="skipConflicts" />
+                <span>Skip conflicts</span>
+              </label>
+              <button type="submit" disabled={committedCount === 0}>
+                Publish all
+              </button>
+            </form>
+          ) : null}
           <Link href={`/plainwrite/${projectId}/settings`}>
             {userCanManage ? 'Manage project' : 'View settings'}
           </Link>
@@ -165,14 +179,21 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 <h3>{group.collection}</h3>
                 <div className={styles.fileList}>
                   {group.files.map((file) => (
-                    <Link
-                      key={file.path}
-                      href={`/plainwrite/${projectId}/editor/${file.path}`}
-                      className={styles.fileRow}
-                    >
-                      <span>{file.filename}</span>
-                      <StatusBadge status={file.status}>{formatFileStatus(file.status)}</StatusBadge>
-                    </Link>
+                    <div key={file.path} className={styles.fileRow}>
+                      <Link href={`/plainwrite/${projectId}/editor/${file.path}`}>
+                        {file.filename}
+                      </Link>
+                      <div className={styles.fileActions}>
+                        <StatusBadge status={file.status}>{formatFileStatus(file.status)}</StatusBadge>
+                        {userCanEdit ? (
+                          <form action={stageContentDeletion.bind(null, projectId, file.path)}>
+                            <button type="submit" disabled={file.status === 'pending-delete'}>
+                              Delete
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -199,8 +220,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         />
         <DashboardCard
           title="Publishing"
-          status="Not connected"
-          description="Publishing will commit validated changes back to the configured branch."
+          status={committedCount > 0 ? `${committedCount} committed` : 'No committed drafts'}
+          description="Publish all creates one validated commit for committed edits and staged deletions."
         />
         <DashboardCard
           title="Members"

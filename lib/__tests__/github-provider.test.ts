@@ -174,6 +174,68 @@ describe('GitHubProvider', () => {
     });
   });
 
+  it('publishes multiple edits and deletions through one Git data commit', async () => {
+    const calls: Array<{ url: string; authorization: string | null; method?: string; body?: unknown }> =
+      [];
+    const provider = new GitHubProvider(
+      mockFetch(
+        [
+          { ok: true, status: 200, body: { object: { sha: 'parent-commit-sha' } } },
+          { ok: true, status: 200, body: { tree: { sha: 'base-tree-sha' } } },
+          { ok: true, status: 201, body: { sha: 'blob-sha' } },
+          { ok: true, status: 201, body: { sha: 'next-tree-sha' } },
+          { ok: true, status: 201, body: { sha: 'next-commit-sha' } },
+          { ok: true, status: 200, body: { object: { sha: 'next-commit-sha' } } },
+        ],
+        calls,
+      ),
+    );
+
+    await expect(
+      provider.publishFiles(
+        project,
+        [
+          {
+            path: 'src/content/blog/hello.md',
+            action: 'update',
+            content: 'hello',
+            baseSha: 'old-sha',
+            message: 'Update hello',
+          },
+          {
+            path: 'src/content/blog/old.md',
+            action: 'delete',
+            content: null,
+            baseSha: 'delete-sha',
+            message: 'Delete old',
+          },
+        ],
+        'Publish 2 files',
+        { authType: 'pat', token: 'test-token', providerLogin: null },
+      ),
+    ).resolves.toEqual({
+      commitSha: 'next-commit-sha',
+      contentSha: null,
+      contentShas: { 'src/content/blog/hello.md': 'blob-sha' },
+    });
+
+    expect(calls.map((call) => [call.method ?? 'GET', call.url])).toEqual([
+      ['GET', 'https://api.github.com/repos/sovereignfs/site/git/ref/heads%2Fmain'],
+      ['GET', 'https://api.github.com/repos/sovereignfs/site/git/commits/parent-commit-sha'],
+      ['POST', 'https://api.github.com/repos/sovereignfs/site/git/blobs'],
+      ['POST', 'https://api.github.com/repos/sovereignfs/site/git/trees'],
+      ['POST', 'https://api.github.com/repos/sovereignfs/site/git/commits'],
+      ['PATCH', 'https://api.github.com/repos/sovereignfs/site/git/refs/heads%2Fmain'],
+    ]);
+    expect(calls[3]?.body).toEqual({
+      base_tree: 'base-tree-sha',
+      tree: [
+        { path: 'src/content/blog/hello.md', mode: '100644', type: 'blob', sha: 'blob-sha' },
+        { path: 'src/content/blog/old.md', mode: '100644', type: 'blob', sha: null },
+      ],
+    });
+  });
+
   it('normalizes GitHub permission failures', async () => {
     const provider = new GitHubProvider(
       mockFetch([{ ok: false, status: 404, body: { message: 'private detail' } }]),

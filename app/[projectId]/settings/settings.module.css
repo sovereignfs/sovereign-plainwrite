@@ -42,7 +42,10 @@
 .members,
 .inlineForm,
 .deleteForm,
-.credentialForms {
+.credentialForms,
+.schemaList,
+.schemaCard,
+.schemaFields {
   display: grid;
   gap: var(--sv-space-4);
 }
@@ -87,7 +90,7 @@
 .credentialDetails {
   display: grid;
   gap: var(--sv-space-3);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   margin: 0;
 }
 
@@ -122,10 +125,44 @@
   padding: var(--sv-space-3);
 }
 
+.schemaCard {
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  padding: var(--sv-space-4);
+}
+
+.schemaCard h3 {
+  margin: 0;
+}
+
+.schemaField {
+  align-items: end;
+  display: grid;
+  gap: var(--sv-space-3);
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, 0.6fr) auto;
+}
+
+.schemaField label {
+  display: grid;
+  gap: var(--sv-space-2);
+}
+
+.schemaField input,
+.schemaField select {
+  width: 100%;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  font: inherit;
+  padding: var(--sv-space-2) var(--sv-space-3);
+}
+
 .form button,
 .inlineForm button,
 .member button,
 .actions button,
+.schemaCard button,
 .secondaryButton {
   justify-self: start;
   border: 1px solid var(--sv-color-border);
@@ -157,5 +194,10 @@
   .actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .schemaField {
+    align-items: stretch;
+    grid-template-columns: 1fr;
   }
 }

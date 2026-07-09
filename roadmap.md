@@ -20,11 +20,11 @@ starts.
 
 ## v0.1 Core
 
-### PLW-001 Scaffold Plugin Repository And Manifest
+### ✅ PLW-001 Scaffold Plugin Repository And Manifest
 
 **Spec refs:** Identity and manifest, Directory structure, SDK dependencies.
 
-**Status:** Scaffold complete; ready for PLW-002.
+**Status:** ✅ Scaffold complete; ready for PLW-002.
 
 Progress as of 2026-07-06:
 
@@ -76,11 +76,11 @@ Verification:
 - Run manifest validation.
 - Run typecheck for the plugin package.
 
-### PLW-002 Add Database Schema And Migrations
+### ✅ PLW-002 Add Database Schema And Migrations
 
 **Spec refs:** Data model.
 
-**Status:** Complete.
+**Status:** ✅ Complete.
 
 Progress as of 2026-07-06:
 
@@ -124,11 +124,11 @@ Verification:
 - Run database migration tests or local migration apply/check command.
 - Run typecheck.
 
-### PLW-003 Implement Project CRUD And Membership
+### ✅ PLW-003 Implement Project CRUD And Membership
 
 **Spec refs:** PLW-01 through PLW-05, Access control.
 
-**Status:** Complete.
+**Status:** ✅ Complete.
 
 Progress as of 2026-07-06:
 
@@ -223,11 +223,11 @@ Verification:
 - Add tests proving token values are not written to plugin tables.
 - Run typecheck and tests.
 
-### PLW-005 Implement GitHub Provider And Astro Adapter
+### ✅ PLW-005 Implement GitHub Provider And Astro Adapter
 
 **Spec refs:** Git provider adapter, SSG adapter, PLW-08 through PLW-10.
 
-**Status:** Complete for v0.1 read-only sync. Publish remains in PLW-007.
+**Status:** ✅ Complete for v0.1 read-only sync. Publish remains in PLW-007.
 
 Progress as of 2026-07-07:
 
@@ -342,12 +342,12 @@ Verification:
   preview sanitization.
 - Run typecheck and tests.
 
-### PLW-007 Implement Single-File Publish And Audit Events
+### ✅ PLW-007 Implement Single-File Publish And Audit Events
 
 **Spec refs:** PLW-21, PLW-23, Multi-file publish GitHub details,
 `plainwrite_publish_events`.
 
-**Status:** Complete for direct single-file create/update publish. Staged
+**Status:** ✅ Complete for direct single-file create/update publish. Staged
 deletion UI and publish-all remain in PLW-008; pull-request publishing remains a
 later enhancement.
 
@@ -396,9 +396,30 @@ Verification:
   and rate limit.
 - Run typecheck and tests.
 
-### PLW-008 Implement Publish All, Staged Deletion, And Schema Tools
+### ✅ PLW-008 Implement Publish All, Staged Deletion, And Schema Tools
 
 **Spec refs:** PLW-22 through PLW-25.
+
+**Status:** ✅ Complete.
+
+Progress as of 2026-07-07:
+
+- [x] Added GitHub publish-all support using one Git data commit for committed
+  edits and staged deletions.
+- [x] Added preflight conflict checks across all committed drafts.
+- [x] Added skip-conflicts behavior for publish-all while preserving conflicted
+  drafts.
+- [x] Added staged deletion from the file listing with `content: null`
+  committed drafts.
+- [x] Updates published drafts, file cache entries, deletion cache state, and
+  publish audit events after publish-all.
+- [x] Infers collection schemas on content sync from up to five files per
+  collection.
+- [x] Added owner-only schema editing and reset-to-inferred controls.
+- [x] Manual schema edits are preserved across future syncs unless reset.
+- [x] Added tests for multi-file publish request construction and schema
+  inference/form normalization.
+- [x] Verified plugin tests and typecheck pass.
 
 Complete the v0.1 multi-file and schema workflow.
 
@@ -428,9 +449,30 @@ Verification:
   staged deletion, and schema inference.
 - Run typecheck and tests.
 
-### PLW-009 Add GitHub OAuth Through Connections
+### ✅ PLW-009 Add GitHub OAuth Through Connections
 
 **Spec refs:** PLW-06, PLW-07, OAuth flow, SDK dependencies.
+
+**Status:** ✅ Complete.
+
+Progress as of 2026-07-07:
+
+- [x] Uses the manifest-declared `git.github` provider config through
+  `sdk.connections`.
+- [x] Starts GitHub OAuth with `sdk.connections.createOAuthState()` and the
+  effective provider callback URL/scopes.
+- [x] Verifies callback state with `sdk.connections.verifyOAuthState()`.
+- [x] Exchanges GitHub authorization codes server-side and stores access tokens
+  in `sdk.secrets`.
+- [x] Creates or updates `sdk.connections` metadata with provider login,
+  project/repository metadata, and `secret_ref`.
+- [x] Stores Plainwrite credential metadata linked to `connection_id` and
+  `secret_ref`.
+- [x] Marks expiring OAuth-backed credentials as `needs_reauth` before use.
+- [x] Keeps PAT fallback visible when OAuth provider config is missing.
+- [x] Added tests for OAuth URL construction, scope normalization, token
+  exchange, and missing config handling.
+- [x] Verified plugin tests and typecheck pass.
 
 Add hosted GitHub OAuth after PAT-backed sync and publishing are stable.
 

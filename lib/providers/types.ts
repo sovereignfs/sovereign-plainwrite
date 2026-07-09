@@ -34,6 +34,7 @@ export interface PendingFile {
 export interface PublishResult {
   commitSha: string;
   contentSha: string | null;
+  contentShas?: Record<string, string>;
 }
 
 export interface OAuthTokens {

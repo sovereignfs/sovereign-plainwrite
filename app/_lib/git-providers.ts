@@ -24,6 +24,7 @@ export interface GitUserInfo {
 export interface GitPublishResult {
   commitSha: string;
   contentSha: string | null;
+  contentShas?: Record<string, string>;
 }
 
 export interface GitProviderAdapter {
@@ -42,6 +43,18 @@ export interface GitProviderAdapter {
       baseSha: string | null;
       message: string;
     },
+    credential: GitCredential,
+  ): Promise<GitPublishResult>;
+  publishFiles(
+    project: PlainwriteProject,
+    files: Array<{
+      path: string;
+      action: 'create' | 'update' | 'delete';
+      content: string | null;
+      baseSha: string | null;
+      message: string | null;
+    }>,
+    message: string,
     credential: GitCredential,
   ): Promise<GitPublishResult>;
 }
@@ -163,6 +176,100 @@ class GitHubProvider implements GitProviderAdapter {
     return {
       commitSha: response.commit.sha,
       contentSha: response.content?.sha ?? null,
+    };
+  }
+
+  async publishFiles(
+    project: PlainwriteProject,
+    files: Array<{
+      path: string;
+      action: 'create' | 'update' | 'delete';
+      content: string | null;
+      baseSha: string | null;
+      message: string | null;
+    }>,
+    message: string,
+    credential: GitCredential,
+  ): Promise<GitPublishResult> {
+    if (!credential.token) throw new Error('Connect a GitHub token before publishing.');
+    if (files.length === 0) throw new Error('Select at least one file to publish.');
+
+    const branchRef = `heads/${project.branch}`;
+    const ref = await fetchGitHubJson<{ object?: { sha?: string } }>(
+      `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/ref/${encodeURIComponent(branchRef)}`,
+      credential.token,
+    );
+    const parentSha = ref.object?.sha;
+    if (!parentSha) throw new Error('GitHub branch ref response did not include a commit SHA.');
+
+    const commit = await fetchGitHubJson<{ tree?: { sha?: string } }>(
+      `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/commits/${parentSha}`,
+      credential.token,
+    );
+    const baseTreeSha = commit.tree?.sha;
+    if (!baseTreeSha) throw new Error('GitHub commit response did not include a tree SHA.');
+
+    const contentShas: Record<string, string> = {};
+    const tree = await Promise.all(
+      files.map(async (file) => {
+        if (file.action === 'delete' || file.content === null) {
+          return { path: file.path, mode: '100644', type: 'blob', sha: null };
+        }
+
+        const blob = await fetchGitHubJson<{ sha?: string }>(
+          `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/blobs`,
+          credential.token,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              content: Buffer.from(file.content, 'utf8').toString('base64'),
+              encoding: 'base64',
+            }),
+          },
+        );
+        if (!blob.sha) throw new Error(`GitHub blob response did not include a SHA for ${file.path}.`);
+        contentShas[file.path] = blob.sha;
+        return { path: file.path, mode: '100644', type: 'blob', sha: blob.sha };
+      }),
+    );
+
+    const nextTree = await fetchGitHubJson<{ sha?: string }>(
+      `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/trees`,
+      credential.token,
+      {
+        method: 'POST',
+        body: JSON.stringify({ base_tree: baseTreeSha, tree }),
+      },
+    );
+    if (!nextTree.sha) throw new Error('GitHub tree response did not include a SHA.');
+
+    const nextCommit = await fetchGitHubJson<{ sha?: string }>(
+      `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/commits`,
+      credential.token,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          message,
+          tree: nextTree.sha,
+          parents: [parentSha],
+        }),
+      },
+    );
+    if (!nextCommit.sha) throw new Error('GitHub commit response did not include a SHA.');
+
+    await fetchGitHubJson<{ object?: { sha?: string } }>(
+      `https://api.github.com/repos/${project.repoOwner}/${project.repoName}/git/refs/${encodeURIComponent(branchRef)}`,
+      credential.token,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ sha: nextCommit.sha, force: false }),
+      },
+    );
+
+    return {
+      commitSha: nextCommit.sha,
+      contentSha: null,
+      contentShas,
     };
   }
 }

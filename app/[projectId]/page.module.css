@@ -154,6 +154,21 @@
   gap: var(--sv-space-2);
 }
 
+.publishAllForm {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+}
+
+.publishAllForm label {
+  align-items: center;
+  display: flex;
+  gap: var(--sv-space-1);
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
 .actions a,
 .actions button,
 .newFileForm button {
@@ -225,7 +240,6 @@
   gap: var(--sv-space-3);
   color: var(--sv-color-text-primary);
   padding: var(--sv-space-3);
-  text-decoration: none;
 }
 
 .fileRow + .fileRow {
@@ -236,8 +250,42 @@
   background: var(--sv-color-surface-sunken);
 }
 
-.fileRow span:first-child {
+.fileRow a {
+  color: inherit;
+  flex: 1;
+  text-decoration: none;
+}
+
+.fileRow a:hover {
+  text-decoration: underline;
+}
+
+.fileRow a:first-child {
   overflow-wrap: anywhere;
+}
+
+.fileActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+  justify-content: flex-end;
+}
+
+.fileActions button {
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+  padding: var(--sv-space-1) var(--sv-space-2);
+}
+
+.actions button:disabled,
+.fileActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .eventList {
