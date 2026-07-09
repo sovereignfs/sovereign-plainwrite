@@ -131,12 +131,11 @@ rate-limit vs not-found).
    directory-picker UI (replacing the raw text `<input>` in the settings form)
    remains a longer-term follow-up, not done here.
 
-4. **No fetch timeout in the GitHub provider.** `fetchGitHubJson` has no
-   `AbortSignal` — a hung GitHub connection hangs the server action (and the
-   user's form submit) indefinitely. Add `AbortSignal.timeout(~10s)`. While
-   there: send `X-GitHub-Api-Version: 2022-11-28`, and handle the contents-API
-   1 MB file limit (`encoding: "none"`) with a clear "file too large" error
-   instead of the generic base64 failure.
+4. ~~**No fetch timeout in the GitHub provider.**~~ ✅ Fixed (bundled into
+   fix-plan item 1). `fetchGitHubJson` now uses `AbortSignal.timeout(10s)`,
+   sends `X-GitHub-Api-Version: 2022-11-28`, and `getFileContent` gives a
+   clear "exceeds the 1 MB API size limit" error for `encoding: "none"`
+   responses instead of the generic base64 failure.
 
 ### P3 — conventions / UX / polish
 
