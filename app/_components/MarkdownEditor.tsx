@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CodeTextarea } from '@sovereignfs/ui';
 import {
   parseMarkdownDocument,
   renderSafeMarkdownPreview,
   serializeMarkdownDocument,
 } from '../_lib/editor-rules';
+import { ConfirmDialog } from './ConfirmDialog';
 import styles from './MarkdownEditor.module.css';
 
 interface MarkdownEditorProps {
@@ -38,11 +39,29 @@ export function MarkdownEditor({
   const [frontmatterYaml, setFrontmatterYaml] = useState(parsed.frontmatterYaml);
   const [body, setBody] = useState(parsed.body);
   const [message, setMessage] = useState(commitMessage ?? `Update ${path.split('/').at(-1) ?? path}`);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const serializedContent = useMemo(
     () => serializeMarkdownDocument(frontmatterYaml, body),
     [frontmatterYaml, body],
   );
   const previewHtml = useMemo(() => renderSafeMarkdownPreview(serializedContent), [serializedContent]);
+  const isDirty = frontmatterYaml !== parsed.frontmatterYaml || body !== parsed.body;
+
+  // Draft state lives in useState with no autosave — closing the tab or
+  // refreshing loses unsaved edits silently otherwise. beforeunload only
+  // covers full-page navigation (tab close, refresh, typed URL); it does not
+  // fire for Next.js client-side <Link> navigation (e.g. the sidebar or the
+  // "Project dashboard" link), which needs the platform's ConfirmDialog
+  // (DS Phase B, not shipped yet) to guard in-app route changes too.
+  useEffect(() => {
+    if (!isDirty) return;
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   return (
     <div className={styles.shell}>
@@ -119,19 +138,27 @@ export function MarkdownEditor({
         </section>
 
         {userCanEdit ? (
-          <form
-            className={styles.discardForm}
-            action={discardAction}
-            onSubmit={(event) => {
-              if (!window.confirm('Discard this local draft?')) {
-                event.preventDefault();
-              }
-            }}
-          >
-            <button type="submit" disabled={status === 'unmodified'}>
+          <>
+            <button
+              type="button"
+              className={styles.discardTrigger}
+              disabled={status === 'unmodified'}
+              onClick={() => setDiscardConfirmOpen(true)}
+            >
               Discard draft
             </button>
-          </form>
+            <ConfirmDialog
+              open={discardConfirmOpen}
+              title="Discard draft"
+              message="This removes your local draft and reloads the current remote content. This cannot be undone."
+              confirmLabel="Discard draft"
+              onCancel={() => setDiscardConfirmOpen(false)}
+              onConfirm={() => {
+                setDiscardConfirmOpen(false);
+                void discardAction();
+              }}
+            />
+          </>
         ) : null}
 
         <section className={styles.previewPanel} aria-labelledby="preview-heading">

@@ -3,15 +3,33 @@
 import { useRef, useState } from 'react';
 import { Button, Dialog } from '@sovereignfs/ui';
 import { createProject } from '../_lib/actions';
+import { ConfirmDialog } from './ConfirmDialog';
 import styles from './NewProjectDialog.module.css';
 
 export function NewProjectDialog() {
   const [open, setOpen] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  function handleDialogClose() {
-    if (formRef.current?.contains(document.activeElement)) return;
+  function resetAndClose() {
+    formRef.current?.reset();
+    setDirty(false);
+    setDiscardConfirmOpen(false);
     setOpen(false);
+  }
+
+  // Dialog focuses the first form field on open, so without a dirty check
+  // Esc/scrim-click would need to fight past "is focus inside the form" —
+  // that used to just silently swallow the dismissal instead. Now: close
+  // immediately when nothing's been entered, confirm before discarding
+  // entered input otherwise.
+  function handleDismissRequest() {
+    if (!dirty) {
+      resetAndClose();
+      return;
+    }
+    setDiscardConfirmOpen(true);
   }
 
   return (
@@ -19,8 +37,13 @@ export function NewProjectDialog() {
       <Button type="button" onClick={() => setOpen(true)}>
         New project
       </Button>
-      <Dialog open={open} onClose={handleDialogClose} size="md" title="New project">
-        <form ref={formRef} action={createProject} className={styles.form}>
+      <Dialog open={open} onClose={handleDismissRequest} size="md" title="New project">
+        <form
+          ref={formRef}
+          action={createProject}
+          className={styles.form}
+          onChange={() => setDirty(true)}
+        >
           <div className={styles.header}>
             <h2>New project</h2>
             <p>Connect a GitHub repository that stores Astro content.</p>
@@ -102,13 +125,21 @@ export function NewProjectDialog() {
             <span id="plainwrite-private-repository-label">Private repository</span>
           </label>
           <div className={styles.actions}>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" variant="secondary" onClick={handleDismissRequest}>
               Cancel
             </Button>
             <Button type="submit">Create project</Button>
           </div>
         </form>
       </Dialog>
+      <ConfirmDialog
+        open={discardConfirmOpen}
+        title="Discard new project?"
+        message="The details you've entered will be lost."
+        confirmLabel="Discard"
+        onCancel={() => setDiscardConfirmOpen(false)}
+        onConfirm={resetAndClose}
+      />
     </>
   );
 }

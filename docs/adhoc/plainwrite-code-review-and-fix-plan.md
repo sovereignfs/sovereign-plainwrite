@@ -165,22 +165,25 @@ rate-limit vs not-found).
    exclusively") and silently loses the DS's touch/a11y/dark-mode behaviour —
    including the A2 touch-hygiene work, which only auto-covers element
    selectors, not the DS components' richer states.
-5. **`NewProjectDialog` can't be dismissed.** Its `handleDialogClose` refuses
-   to close while focus is inside the form — but `Dialog` focuses the first
-   form field on open, so Esc/scrim-click effectively never work; only Cancel
-   does. If the intent was "don't lose form input", implement a dirty-check
-   confirm instead of silently swallowing dismissals.
-6. **Editor has no unsaved-changes protection.** Draft state lives in
-   `useState`; navigating away (sidebar links, back) or closing the tab loses
-   edits silently. Add dirty tracking + `beforeunload` + (when available) the
-   platform's ConfirmDialog on in-app nav. For a writing tool this is the #1
-   trust feature; consider debounced autosave-as-draft (SPEC's PLW-006 editor
-   task is still open — fold it there).
-7. **`window.confirm` for discard-draft** (`MarkdownEditor.tsx`) — non-native
-   feel in the PWA; replace with the native `<dialog>` pattern used elsewhere
-   or the DS `ConfirmDialog` when Phase B of
-   the platform monorepo's `docs/adhoc/mobile-design-system-improvement-plan.md`
-   ships it.
+5. ~~**`NewProjectDialog` can't be dismissed.**~~ ✅ Fixed. Tracks form dirtiness
+   via an `onChange` handler on the form; `handleDismissRequest` (Esc,
+   scrim-click, and now Cancel too) closes immediately when nothing's been
+   entered, and shows a confirm prompt instead of silently swallowing the
+   dismissal when it has.
+6. ~~**Editor has no unsaved-changes protection.**~~ Partially fixed. Added
+   dirty tracking (comparing current frontmatter/body against the
+   as-loaded values) and a `beforeunload` guard, covering tab close/refresh/
+   typed-URL navigation. In-app `<Link>` navigation (sidebar, "Project
+   dashboard") is **not** guarded — `beforeunload` doesn't fire for Next.js
+   client-side navigation, and doing this properly needs either a router-level
+   guard or the platform's ConfirmDialog (DS Phase B, not shipped). Debounced
+   autosave-as-draft remains open, folded into PLW-006 per the original note.
+7. ~~**`window.confirm` for discard-draft**~~ ✅ Fixed. Replaced with a shared
+   `app/_components/ConfirmDialog.tsx`, matching the native `<dialog>` pattern
+   already used in `plugins/account`/`plugins/console` (kept plugin-local —
+   this is within-Plainwrite reuse between `MarkdownEditor` and
+   `NewProjectDialog`, not a new DS capability). Swap for the DS
+   `ConfirmDialog` when Phase B ships.
 8. **Mobile is a squeeze, not a design.** `layout.module.css` collapses the
    project sidebar above the content at ≤720px; the editor stacks three dense
    panels. Fine for v0.1 scaffolding, but flag: when the DS Phase B surfaces
@@ -211,7 +214,7 @@ rate-limit vs not-found).
 | 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch | ✅ done |
 | 6a | `fix/publish-all-bookkeeping-and-conflict` | Two P1s from a follow-up review after PLW-008/009 merged (see below). | patch | ✅ done |
 | 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | ✅ done |
-| 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | pending |
+| 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | ✅ done (in-app nav guard for P3-6 deferred — see finding 6) |
 | 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | pending |
 
 Items P3-8/9/10 ride along where they fit or wait for DS Phase B / PLW-017.

@@ -82,7 +82,7 @@
 }
 
 .actions button,
-.discardForm button {
+.discardTrigger {
   border: 1px solid var(--sv-color-border-strong);
   border-radius: var(--sv-radius-md);
   background: var(--sv-color-surface);
@@ -107,7 +107,7 @@
 }
 
 .actions button:hover,
-.discardForm button:hover {
+.discardTrigger:hover {
   background: var(--sv-color-surface-sunken);
 }
 
@@ -116,16 +116,12 @@
 }
 
 .actions button:disabled,
-.discardForm button:disabled {
+.discardTrigger:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
-.discardForm {
-  margin: 0;
-}
-
-.discardForm button {
+.discardTrigger {
   width: 100%;
 }
 
