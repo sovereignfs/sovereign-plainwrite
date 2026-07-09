@@ -142,14 +142,17 @@ rate-limit vs not-found).
 
 ### P3 — conventions / UX / polish
 
-1. **tsconfig doesn't extend `@sovereignfs/tsconfig`** (hard platform rule:
-   every package extends `base`/`nextjs`/`library`). It hand-rolls the full
-   config and omits the workspace devDependency. Port to
-   `"extends": "@sovereignfs/tsconfig/nextjs.json"` + local include/paths.
-2. **`package.json` ignores the pnpm catalog** — `next`, `react`, `react-dom`,
-   `@types/react*`, `typescript` are literal ranges; other plugins use
-   `"catalog:"`. Align to prevent version drift (this is exactly what the
-   catalog exists for).
+1. ~~**tsconfig doesn't extend `@sovereignfs/tsconfig`**~~ ✅ Fixed. Now
+   `"extends": "@sovereignfs/tsconfig/nextjs.json"` with local
+   `baseUrl`/`paths`/`include`/`exclude`, matching `runtime/tsconfig.json`'s
+   pattern. `nextjs.json`'s base adds stricter flags
+   (`noUnusedLocals`/`noUnusedParameters`/`verbatimModuleSyntax`/
+   `noUncheckedIndexedAccess`/`noImplicitOverride`) — typecheck passed clean
+   with no fallout.
+2. ~~**`package.json` ignores the pnpm catalog**~~ ✅ Fixed. `next`, `react`,
+   `react-dom`, `@types/react`, `@types/react-dom`, `typescript` now use
+   `"catalog:"`. (`@types/node` and `vitest` are not in the workspace catalog,
+   so they keep literal ranges.)
 3. **Breakpoint zoo.** Five ad-hoc mobile breakpoints (1040, 920, 720×5, 700,
    560×2) vs the platform's canonical 768 (see the platform monorepo's
    `docs/design-system.md`).
@@ -207,7 +210,7 @@ rate-limit vs not-found).
 | 5 | `chore/manifest-permission-trim` | P2-2: trim manifest to used permissions. OAuth provider block kept as-is — PLW-009 landed since the review, so it's no longer dead. Note in roadmap PLW-010. | none (manifest change — re-validate against platform schema) | ✅ done |
 | 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch | ✅ done |
 | 6a | `fix/publish-all-bookkeeping-and-conflict` | Two P1s from a follow-up review after PLW-008/009 merged (see below). | patch | ✅ done |
-| 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | pending |
+| 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | ✅ done |
 | 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | pending |
 | 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | pending |
 
