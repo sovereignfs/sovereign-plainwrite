@@ -185,6 +185,29 @@ async function requireProjectRole(
   return role;
 }
 
+/**
+ * Confirms `path` is a content file this project's file listing would ever
+ * show — inside `pathPrefix`, using an extension the SSG adapter recognizes,
+ * with no `..`/absolute-path traversal. Without this, an editor-role member
+ * could read, draft, or publish arbitrary repo paths (e.g. `.github/workflows/x.yml`)
+ * through Plainwrite even though the UI only ever lists `pathPrefix`-scoped
+ * content — defeating the project's own scoping model and audit trail.
+ */
+function assertContentPathAllowed(project: PlainwriteProject, path: string) {
+  const segments = path.split('/');
+  const hasTraversal = segments.some(
+    (segment) => segment === '' || segment === '.' || segment === '..',
+  );
+  if (!path || path.startsWith('/') || path.includes('\\') || hasTraversal) {
+    throw new Error('Invalid file path.');
+  }
+
+  const adapter = getSsgAdapter(project.ssgType);
+  if (!adapter.isPathAllowed(path, project.pathPrefix)) {
+    throw new Error("File path is outside this project's configured content path.");
+  }
+}
+
 export async function listProjects(options: { includeArchived?: boolean } = {}) {
   const { db, userId, tenantId } = await getContext();
   const memberships = await db
@@ -444,6 +467,7 @@ export async function getEditorState(projectId: string, path: string): Promise<E
   const { db, userId, tenantId } = await getContext();
   const currentUserRole = await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
   const project = await getProjectRow(db, tenantId, projectId);
+  assertContentPathAllowed(project, path);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
 
   const draftRows = await db
@@ -569,6 +593,7 @@ export async function publishCommittedDraft(projectId: string, path: string) {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'editor');
   const project = await getProjectRow(db, tenantId, projectId);
+  assertContentPathAllowed(project, path);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
   if (!credential.token) {
     throw new Error('Connect a GitHub token before publishing.');
@@ -1646,6 +1671,8 @@ async function upsertDraft(
 ) {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  assertContentPathAllowed(project, path);
   const content = formRawString(formData, 'content');
   const baseSha = formString(formData, 'baseSha') || null;
   const commitMessage =

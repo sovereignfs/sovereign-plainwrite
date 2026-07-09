@@ -201,21 +201,26 @@ rate-limit vs not-found).
 
 ---
 
-## Fix plan (suggested order, one branch/PR each in the plugin repo)
+## Fix plan (suggested order; items 1–4 landed as direct commits to `main` per developer instruction, not branch/PR)
 
-| # | Branch | Contents | Bump |
-| - | ------ | -------- | ---- |
-| 1 | `fix/editor-remote-load-fallback` | P0 + P2-4 (timeout makes transient failures rarer; the P0 fix makes them safe). Regression tests for not-found vs transient-error. Commit the pending working-tree lint fixes here too (with the `?? 1` correction). | patch |
-| 2 | `chore/remove-dead-lib-tree` | P1-1: delete/shim dead `lib/` code, port the two test files to the live modules, update `vitest.config.ts`, amend SPEC directory section. No behaviour change. | none |
-| 3 | `fix/credential-lifecycle` | P1-2 + P1-3 + the pending PLW-004 credential tests (roadmap already owes them). | patch |
-| 4 | `fix/path-scope-enforcement` | P2-1: pathPrefix + extension + `..` validation across editor state, drafts, publish. Tests. (Pull-forward slice of PLW-017.) | patch |
-| 5 | `chore/manifest-permission-trim` | P2-2: trim manifest to used permissions; drop/gate OAuth provider block until PLW-009; note in roadmap. | none (manifest change — re-validate against platform schema) |
-| 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch |
-| 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none |
-| 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch |
-| 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch |
+| # | Branch | Contents | Bump | Status |
+| - | ------ | -------- | ---- | ------ |
+| 1 | `fix/editor-remote-load-fallback` | P0 + P2-4 (timeout makes transient failures rarer; the P0 fix makes them safe). Regression tests for not-found vs transient-error. Commit the pending working-tree lint fixes here too (with the `?? 1` correction). | patch | ✅ done |
+| 2 | `chore/remove-dead-lib-tree` | P1-1: delete/shim dead `lib/` code, port the two test files to the live modules, update `vitest.config.ts`, amend SPEC directory section. No behaviour change. | none | ✅ done |
+| 3 | `fix/credential-lifecycle` | P1-2 + P1-3 + the pending PLW-004 credential tests (roadmap already owes them). | patch | ✅ done |
+| 4 | `fix/path-scope-enforcement` | P2-1: pathPrefix + extension + `..` validation across editor state, drafts, publish. Tests. (Pull-forward slice of PLW-017.) | patch | ✅ done |
+| 5 | `chore/manifest-permission-trim` | P2-2: trim manifest to used permissions; drop/gate OAuth provider block until PLW-009; note in roadmap. | none (manifest change — re-validate against platform schema) | pending |
+| 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch | pending |
+| 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | pending |
+| 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | pending |
+| 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | pending |
 
 Items P3-8/9/10 ride along where they fit or wait for DS Phase B / PLW-017.
+
+Two additional P1s surfaced in a follow-up review after PLW-008/009 merged (publish-all
+partial-failure drift on the per-draft DB update after a successful GitHub commit, and a
+TOCTOU window in the pre-publish conflict check) — not yet in this table's numbered order;
+pick up after item 6 unless reprioritized.
 
 ## Verification per task
 

@@ -49,6 +49,26 @@ describe('Astro adapter', () => {
 
     expect(adapter.discoverContent(tree, '/src/content/')).toHaveLength(3);
   });
+
+  it('allows a Markdown/MDX path inside the configured path prefix', () => {
+    const adapter = getSsgAdapter('astro');
+
+    expect(adapter.isPathAllowed('src/content/blog/hello-world.md', 'src/content')).toBe(true);
+    expect(adapter.isPathAllowed('src/content/articles/deep-dive.mdx', 'src/content')).toBe(true);
+  });
+
+  it('rejects a path outside the configured path prefix', () => {
+    const adapter = getSsgAdapter('astro');
+
+    expect(adapter.isPathAllowed('.github/workflows/deploy.yml', 'src/content')).toBe(false);
+    expect(adapter.isPathAllowed('src/pages/about.md', 'src/content')).toBe(false);
+  });
+
+  it('rejects a path inside the prefix with an unsupported extension', () => {
+    const adapter = getSsgAdapter('astro');
+
+    expect(adapter.isPathAllowed('src/content/blog/image.png', 'src/content')).toBe(false);
+  });
 });
 
 describe('getSsgAdapter', () => {
