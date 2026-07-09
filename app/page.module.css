@@ -39,7 +39,10 @@
   color: var(--sv-color-text-secondary);
 }
 
-@media (max-width: 720px) {
+/* 768px matches the platform's canonical mobile breakpoint
+   (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile), not a plugin-local
+   guess — see docs/adhoc/plainwrite-code-review-and-fix-plan.md P3-3. */
+@media (max-width: 768px) {
   .project {
     grid-template-columns: 1fr;
   }

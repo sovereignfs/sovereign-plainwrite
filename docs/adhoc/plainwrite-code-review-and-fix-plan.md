@@ -153,18 +153,36 @@ rate-limit vs not-found).
    `react-dom`, `@types/react`, `@types/react-dom`, `typescript` now use
    `"catalog:"`. (`@types/node` and `vitest` are not in the workspace catalog,
    so they keep literal ranges.)
-3. **Breakpoint zoo.** Five ad-hoc mobile breakpoints (1040, 920, 720×5, 700,
-   560×2) vs the platform's canonical 768 (see the platform monorepo's
-   `docs/design-system.md`).
-   Consolidate to 768 (or a documented plugin-local value like tasks' 640 —
-   but one value, documented, not five).
-4. **Raw HTML form controls throughout** (`<input>`, `<select>`, `<textarea>`,
-   `<button>` in `MarkdownEditor`, `NewProjectDialog`, settings page, project
-   page) instead of DS `Input`/`Select`/`Textarea`/`Button`/`Checkbox`/
-   `FormField`. Violates the plugin UI rule ("consume `@sovereignfs/ui`
-   exclusively") and silently loses the DS's touch/a11y/dark-mode behaviour —
-   including the A2 touch-hygiene work, which only auto-covers element
-   selectors, not the DS components' richer states.
+3. ~~**Breakpoint zoo.**~~ ✅ Fixed. All primary sidebar/panel collapse
+   breakpoints (previously 1040, 920, 700, 720×5 across six files)
+   consolidated to 768px, matching `@sovereignfs/ui`'s `MOBILE_BREAKPOINT_PX`
+   / `useIsMobile()` — each `@media` block now has a comment pointing at this.
+   The two 560px breakpoints were left untouched: they're a distinct,
+   smaller-tier "squeeze further on very narrow phones" threshold nested
+   inside the already-collapsed layout, not part of the primary-collapse
+   duplication the finding was about.
+4. ~~**Raw HTML form controls throughout**~~ ✅ Fixed. `MarkdownEditor`,
+   `NewProjectDialog`, the settings page, and the project page now use DS
+   `Input`/`Select`/`Textarea`/`Button`/`Checkbox`/`FormField` exclusively
+   (hidden `<input type="hidden">` fields are intentionally left raw — no
+   visual/a11y surface to convert). Added `app/_components/FormCheckbox.tsx`:
+   DS `Checkbox` is a controlled component, but this plugin's settings/project
+   pages are server components submitting via native
+   `<form action={serverAction}>` — `FormCheckbox` bridges the two with local
+   state seeded from `defaultChecked`, matching the platform's
+   `plugins/console/app/users/invite/invite-form.tsx` `FormField` usage
+   pattern. Removed now-dead per-plugin CSS that hand-rolled input/select/
+   button styling the DS components already own.
+   **Not visually verified** — this environment has no way to reach an
+   authenticated session (auth flow needs a running instance + seeded user)
+   and port 3000 was held by an unrelated Docker service, so this could not
+   be checked in a browser. Verified instead via: `pnpm typecheck`/`lint`/
+   `test` all green, `grep` confirms zero remaining raw `<input>`/`<select>`/
+   `<textarea>`/`<button>` outside the two intentional hidden inputs, and the
+   `FormField` render-prop usage is a structural copy of the already-shipped
+   `invite-form.tsx` pattern. **Please visually QA this page** (in particular
+   the settings page's 3-column schema-field grid and the project page's
+   `.newFileForm` grid) before relying on it.
 5. ~~**`NewProjectDialog` can't be dismissed.**~~ ✅ Fixed. Tracks form dirtiness
    via an `onChange` handler on the form; `handleDismissRequest` (Esc,
    scrim-click, and now Cancel too) closes immediately when nothing's been
@@ -215,7 +233,7 @@ rate-limit vs not-found).
 | 6a | `fix/publish-all-bookkeeping-and-conflict` | Two P1s from a follow-up review after PLW-008/009 merged (see below). | patch | ✅ done |
 | 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | ✅ done |
 | 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | ✅ done (in-app nav guard for P3-6 deferred — see finding 6) |
-| 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | pending |
+| 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | ✅ done — not visually verified, see note below |
 
 Items P3-8/9/10 ride along where they fit or wait for DS Phase B / PLW-017.
 

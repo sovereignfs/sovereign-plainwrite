@@ -60,65 +60,18 @@
   color: var(--sv-color-text-secondary);
 }
 
-.commitPanel label {
-  color: var(--sv-color-text-primary);
-  font-weight: var(--sv-font-weight-semibold);
-}
-
-.commitPanel input {
-  width: 100%;
-  border: 1px solid var(--sv-color-border-strong);
-  border-radius: var(--sv-radius-md);
-  background: var(--sv-color-surface);
-  color: var(--sv-color-text-primary);
-  font: inherit;
-  padding: var(--sv-space-2) var(--sv-space-3);
-}
-
 .actions {
   display: grid;
   gap: var(--sv-space-2);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.actions button,
-.discardTrigger {
-  border: 1px solid var(--sv-color-border-strong);
-  border-radius: var(--sv-radius-md);
-  background: var(--sv-color-surface);
-  color: var(--sv-color-text-primary);
-  cursor: pointer;
-  font: inherit;
-  padding: var(--sv-space-2) var(--sv-space-3);
-}
-
 .actions form {
   display: grid;
 }
 
-.actions form button {
+.fullWidth {
   width: 100%;
-}
-
-.primaryAction {
-  background: var(--sv-color-accent);
-  border-color: var(--sv-color-accent);
-  color: var(--sv-color-text-on-accent);
-}
-
-.actions button:hover,
-.discardTrigger:hover {
-  background: var(--sv-color-surface-sunken);
-}
-
-.primaryAction:hover {
-  background: var(--sv-color-accent-hover);
-}
-
-.actions button:disabled,
-.discardTrigger:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 
 .discardTrigger {
@@ -151,7 +104,10 @@
   padding: 0 var(--sv-space-1);
 }
 
-@media (max-width: 1040px) {
+/* 768px matches the platform's canonical mobile breakpoint
+   (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile), not a plugin-local
+   guess — see docs/adhoc/plainwrite-code-review-and-fix-plan.md P3-3. */
+@media (max-width: 768px) {
   .shell {
     grid-template-columns: 1fr;
   }

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { Badge, PageHeader, StatusBadge } from '@sovereignfs/ui';
+import { Badge, Button, FormField, Input, PageHeader, Select, StatusBadge, Textarea } from '@sovereignfs/ui';
 import {
   archiveProject,
   connectGitHubPat,
@@ -17,6 +17,7 @@ import {
   updateProjectSettings,
 } from '../../_lib/actions';
 import { canEditProject, canManageProject } from '../../_lib/project-rules';
+import { FormCheckbox } from '../../_components/FormCheckbox';
 import styles from './settings.module.css';
 
 interface SettingsPageProps {
@@ -49,56 +50,72 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
       <section className={styles.panel} aria-labelledby="repository-settings">
         <h2 id="repository-settings">Repository</h2>
         <form action={updateProjectSettings.bind(null, project.id)} className={styles.form}>
-          <label>
-            <span>Name</span>
-            <input name="name" required defaultValue={project.name} disabled={!userCanManage} />
-          </label>
-          <label>
-            <span>Description</span>
-            <textarea
-              name="description"
-              rows={2}
-              defaultValue={project.description ?? ''}
-              disabled={!userCanManage}
-            />
-          </label>
-          <div className={styles.grid}>
-            <label>
-              <span>Branch</span>
-              <input name="branch" defaultValue={project.branch} disabled={!userCanManage} />
-            </label>
-            <label>
-              <span>Path prefix</span>
-              <input name="pathPrefix" defaultValue={project.pathPrefix} disabled={!userCanManage} />
-            </label>
-            <label>
-              <span>SSG</span>
-              <select name="ssgType" defaultValue={project.ssgType} disabled={!userCanManage}>
-                <option value="astro">Astro</option>
-              </select>
-            </label>
-            <label>
-              <span>Metadata</span>
-              <select
-                name="metadataVisibility"
-                defaultValue={project.metadataVisibility}
+          <FormField label="Name">
+            {(field) => (
+              <Input
+                {...field}
+                name="name"
+                required
+                defaultValue={project.name}
                 disabled={!userCanManage}
-              >
-                <option value="members_with_credentials">Members with credentials</option>
-                <option value="all_members">All members</option>
-              </select>
-            </label>
+              />
+            )}
+          </FormField>
+          <FormField label="Description">
+            {(field) => (
+              <Textarea
+                {...field}
+                name="description"
+                rows={2}
+                defaultValue={project.description ?? ''}
+                disabled={!userCanManage}
+              />
+            )}
+          </FormField>
+          <div className={styles.grid}>
+            <FormField label="Branch">
+              {(field) => (
+                <Input {...field} name="branch" defaultValue={project.branch} disabled={!userCanManage} />
+              )}
+            </FormField>
+            <FormField label="Path prefix">
+              {(field) => (
+                <Input
+                  {...field}
+                  name="pathPrefix"
+                  defaultValue={project.pathPrefix}
+                  disabled={!userCanManage}
+                />
+              )}
+            </FormField>
+            <FormField label="SSG">
+              {(field) => (
+                <Select {...field} name="ssgType" defaultValue={project.ssgType} disabled={!userCanManage}>
+                  <option value="astro">Astro</option>
+                </Select>
+              )}
+            </FormField>
+            <FormField label="Metadata">
+              {(field) => (
+                <Select
+                  {...field}
+                  name="metadataVisibility"
+                  defaultValue={project.metadataVisibility}
+                  disabled={!userCanManage}
+                >
+                  <option value="members_with_credentials">Members with credentials</option>
+                  <option value="all_members">All members</option>
+                </Select>
+              )}
+            </FormField>
           </div>
-          <label className={styles.checkbox}>
-            <input
-              name="isPrivate"
-              type="checkbox"
-              defaultChecked={project.isPrivate}
-              disabled={!userCanManage}
-            />
-            <span>Private repository</span>
-          </label>
-          {userCanManage ? <button type="submit">Save settings</button> : null}
+          <FormCheckbox
+            name="isPrivate"
+            defaultChecked={project.isPrivate}
+            disabled={!userCanManage}
+            label="Private repository"
+          />
+          {userCanManage ? <Button type="submit">Save settings</Button> : null}
         </form>
       </section>
 
@@ -152,9 +169,9 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                   GitHub OAuth is configured for this instance. Authorization opens GitHub and
                   stores the returned token in the platform secret vault.
                 </p>
-                <button type="submit">
+                <Button type="submit">
                   {project.credential?.authType === 'oauth' ? 'Reconnect GitHub' : 'Connect GitHub'}
-                </button>
+                </Button>
               </form>
             ) : (
               <p className={styles.helpText}>
@@ -163,31 +180,33 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
             )}
 
             <form action={connectGitHubPat.bind(null, project.id)} className={styles.form}>
-              <label>
-                <span>Personal access token</span>
-                <input
-                  name="token"
-                  type="password"
-                  required
-                  autoComplete="off"
-                  placeholder="github_pat_..."
-                />
-              </label>
+              <FormField label="Personal access token">
+                {(field) => (
+                  <Input
+                    {...field}
+                    name="token"
+                    type="password"
+                    required
+                    autoComplete="off"
+                    placeholder="github_pat_..."
+                  />
+                )}
+              </FormField>
               <p className={styles.helpText}>
                 Use a fine-grained token with contents read/write access for
                 {` ${project.repoOwner}/${project.repoName}`}. The token is stored in the platform
                 secret vault and is never saved in Plainwrite tables.
               </p>
-              <button type="submit">
+              <Button type="submit">
                 {project.credential?.status === 'connected' ? 'Reconnect token' : 'Connect token'}
-              </button>
+              </Button>
             </form>
 
             {project.credential?.status === 'connected' ? (
               <form action={disconnectGitHubCredential.bind(null, project.id)}>
-                <button type="submit" className={styles.secondaryButton}>
+                <Button type="submit" variant="secondary">
                   Disconnect
-                </button>
+                </Button>
               </form>
             ) : null}
           </div>
@@ -225,48 +244,57 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                     </p>
                   </div>
                   {userCanManage ? (
-                    <button
+                    <Button
                       type="submit"
                       formAction={resetCollectionSchema.bind(null, project.id, schema.collection)}
-                      className={styles.secondaryButton}
+                      variant="secondary"
                     >
                       Reset
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
                 <div className={styles.schemaFields}>
                   {[...schema.fields, { name: '', type: 'string' as const, required: false }].map(
                     (field, index) => (
                       <div key={`${schema.collection}-${index}`} className={styles.schemaField}>
-                        <label>
-                          <span>Name</span>
-                          <input name="fieldName" defaultValue={field.name} disabled={!userCanManage} />
-                        </label>
-                        <label>
-                          <span>Type</span>
-                          <select name="fieldType" defaultValue={field.type} disabled={!userCanManage}>
-                            <option value="string">Text</option>
-                            <option value="date">Date</option>
-                            <option value="number">Number</option>
-                            <option value="boolean">Toggle</option>
-                            <option value="array">Tags</option>
-                          </select>
-                        </label>
-                        <label className={styles.checkbox}>
-                          <input
-                            name="fieldRequired"
-                            value={String(index)}
-                            type="checkbox"
-                            defaultChecked={field.required}
-                            disabled={!userCanManage}
-                          />
-                          <span>Required</span>
-                        </label>
+                        <FormField label="Name">
+                          {(fieldProps) => (
+                            <Input
+                              {...fieldProps}
+                              name="fieldName"
+                              defaultValue={field.name}
+                              disabled={!userCanManage}
+                            />
+                          )}
+                        </FormField>
+                        <FormField label="Type">
+                          {(fieldProps) => (
+                            <Select
+                              {...fieldProps}
+                              name="fieldType"
+                              defaultValue={field.type}
+                              disabled={!userCanManage}
+                            >
+                              <option value="string">Text</option>
+                              <option value="date">Date</option>
+                              <option value="number">Number</option>
+                              <option value="boolean">Toggle</option>
+                              <option value="array">Tags</option>
+                            </Select>
+                          )}
+                        </FormField>
+                        <FormCheckbox
+                          name="fieldRequired"
+                          value={String(index)}
+                          defaultChecked={field.required}
+                          disabled={!userCanManage}
+                          label="Required"
+                        />
                       </div>
                     ),
                   )}
                 </div>
-                {userCanManage ? <button type="submit">Save schema</button> : null}
+                {userCanManage ? <Button type="submit">Save schema</Button> : null}
               </form>
             ))}
           </div>
@@ -290,7 +318,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
               <StatusBadge status="unmodified">{member.role}</StatusBadge>
               {userCanManage ? (
                 <form action={removeProjectMember.bind(null, project.id, member.userId)}>
-                  <button type="submit">Remove</button>
+                  <Button type="submit">Remove</Button>
                 </form>
               ) : null}
             </div>
@@ -298,19 +326,17 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
         </div>
         {userCanManage ? (
           <form action={inviteProjectMember.bind(null, project.id)} className={styles.inlineForm}>
-            <label>
-              <span>User ID</span>
-              <input name="userId" required />
-            </label>
-            <label>
-              <span>Role</span>
-              <select name="role" defaultValue="viewer">
-                <option value="viewer">Viewer</option>
-                <option value="editor">Editor</option>
-                <option value="owner">Owner</option>
-              </select>
-            </label>
-            <button type="submit">Add member</button>
+            <FormField label="User ID">{(field) => <Input {...field} name="userId" required />}</FormField>
+            <FormField label="Role">
+              {(field) => (
+                <Select {...field} name="role" defaultValue="viewer">
+                  <option value="viewer">Viewer</option>
+                  <option value="editor">Editor</option>
+                  <option value="owner">Owner</option>
+                </Select>
+              )}
+            </FormField>
+            <Button type="submit">Add member</Button>
           </form>
         ) : null}
       </section>
@@ -321,19 +347,18 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
           <div className={styles.actions}>
             {project.archivedAt ? (
               <form action={restoreProject.bind(null, project.id)}>
-                <button type="submit">Restore project</button>
+                <Button type="submit">Restore project</Button>
               </form>
             ) : (
               <form action={archiveProject.bind(null, project.id)}>
-                <button type="submit">Archive project</button>
+                <Button type="submit">Archive project</Button>
               </form>
             )}
             <form action={hardDeleteProject.bind(null, project.id)} className={styles.deleteForm}>
-              <label>
-                <span>Type DELETE to permanently delete</span>
-                <input name="confirm" />
-              </label>
-              <button type="submit">Delete permanently</button>
+              <FormField label="Type DELETE to permanently delete">
+                {(field) => <Input {...field} name="confirm" />}
+              </FormField>
+              <Button type="submit">Delete permanently</Button>
             </form>
           </div>
         </section>

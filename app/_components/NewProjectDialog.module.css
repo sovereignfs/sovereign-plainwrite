@@ -18,8 +18,7 @@
   padding-right: var(--sv-space-8);
 }
 
-.header p,
-.help {
+.header p {
   color: var(--sv-color-text-secondary);
   font-size: var(--sv-font-size-sm);
   line-height: 1.4;
@@ -33,42 +32,10 @@
   text-transform: none;
 }
 
-.form label {
-  display: grid;
-  gap: var(--sv-space-1);
-}
-
-.form span {
-  color: var(--sv-color-text-secondary);
-  font-size: var(--sv-font-size-sm);
-}
-
-.form input,
-.form select,
-.form textarea {
-  width: 100%;
-  border: 1px solid var(--sv-color-border);
-  border-radius: var(--sv-radius-sm);
-  background: var(--sv-color-surface);
-  color: var(--sv-color-text-primary);
-  font: inherit;
-  padding: 10px var(--sv-space-3);
-}
-
 .grid {
   display: grid;
   gap: var(--sv-space-3);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.checkbox {
-  align-items: center;
-  display: flex !important;
-  gap: var(--sv-space-2) !important;
-}
-
-.checkbox input {
-  width: auto;
 }
 
 .actions {
@@ -79,7 +46,10 @@
   padding-top: var(--sv-space-2);
 }
 
-@media (max-width: 720px) {
+/* 768px matches the platform's canonical mobile breakpoint
+   (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile), not a plugin-local
+   guess — see docs/adhoc/plainwrite-code-review-and-fix-plan.md P3-3. */
+@media (max-width: 768px) {
   .grid {
     grid-template-columns: 1fr;
   }

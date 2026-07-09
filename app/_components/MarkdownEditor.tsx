@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CodeTextarea } from '@sovereignfs/ui';
+import { Button, CodeTextarea, FormField, Input } from '@sovereignfs/ui';
 import {
   parseMarkdownDocument,
   renderSafeMarkdownPreview,
@@ -111,27 +111,30 @@ export function MarkdownEditor({
             <h2 id="commit-heading">{statusLabel(status)}</h2>
             <p>Saved drafts stay local until a publishing task connects Git write-back.</p>
           </div>
-          <label htmlFor="commitMessage">Commit message</label>
-          <input
-            id="commitMessage"
-            form="plainwrite-editor-form"
-            name="commitMessage"
-            value={message}
-            onChange={(event) => setMessage(event.currentTarget.value)}
-            disabled={!userCanEdit}
-          />
+          <FormField label="Commit message" id="commitMessage">
+            {(field) => (
+              <Input
+                {...field}
+                form="plainwrite-editor-form"
+                name="commitMessage"
+                value={message}
+                onChange={(event) => setMessage(event.currentTarget.value)}
+                disabled={!userCanEdit}
+              />
+            )}
+          </FormField>
           {userCanEdit ? (
             <div className={styles.actions}>
-              <button type="submit" form="plainwrite-editor-form" className={styles.primaryAction}>
+              <Button type="submit" form="plainwrite-editor-form">
                 Save draft
-              </button>
-              <button type="submit" form="plainwrite-editor-form" formAction={commitAction}>
+              </Button>
+              <Button type="submit" form="plainwrite-editor-form" formAction={commitAction} variant="secondary">
                 Mark ready
-              </button>
+              </Button>
               <form action={publishAction}>
-                <button type="submit" disabled={status !== 'committed'}>
+                <Button type="submit" variant="secondary" disabled={status !== 'committed'} className={styles.fullWidth}>
                   Publish
-                </button>
+                </Button>
               </form>
             </div>
           ) : null}
@@ -139,14 +142,15 @@ export function MarkdownEditor({
 
         {userCanEdit ? (
           <>
-            <button
+            <Button
               type="button"
+              variant="secondary"
               className={styles.discardTrigger}
               disabled={status === 'unmodified'}
               onClick={() => setDiscardConfirmOpen(true)}
             >
               Discard draft
-            </button>
+            </Button>
             <ConfirmDialog
               open={discardConfirmOpen}
               title="Discard draft"

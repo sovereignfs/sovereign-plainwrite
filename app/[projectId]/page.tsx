@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Card, PageHeader, StatusBadge } from '@sovereignfs/ui';
+import { Button, Card, FormField, Input, PageHeader, StatusBadge } from '@sovereignfs/ui';
 import {
   createContentFile,
   getProject,
@@ -10,6 +10,7 @@ import {
   stageContentDeletion,
   syncProjectContent,
 } from '../_lib/actions';
+import { FormCheckbox } from '../_components/FormCheckbox';
 import { groupContentFiles } from '../_lib/content-rules';
 import { canEditProject, canManageProject } from '../_lib/project-rules';
 import styles from './page.module.css';
@@ -117,18 +118,18 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         <div className={styles.actions}>
           {userCanEdit ? (
             <form action={syncProjectContent.bind(null, projectId)}>
-              <button type="submit">Sync content</button>
+              <Button type="submit">Sync content</Button>
             </form>
           ) : null}
           {userCanEdit ? (
-            <form action={publishAllCommittedDrafts.bind(null, projectId)} className={styles.publishAllForm}>
-              <label>
-                <input type="checkbox" name="skipConflicts" />
-                <span>Skip conflicts</span>
-              </label>
-              <button type="submit" disabled={committedCount === 0}>
+            <form
+              action={publishAllCommittedDrafts.bind(null, projectId)}
+              className={styles.publishAllForm}
+            >
+              <FormCheckbox name="skipConflicts" label="Skip conflicts" />
+              <Button type="submit" disabled={committedCount === 0}>
                 Publish all
-              </button>
+              </Button>
             </form>
           ) : null}
           <Link href={`/plainwrite/${projectId}/settings`}>
@@ -147,15 +148,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </p>
           </div>
           <form className={styles.newFileForm} action={createContentFile.bind(null, projectId)}>
-            <label>
-              Collection
-              <input name="collection" placeholder="blog" />
-            </label>
-            <label>
-              Filename
-              <input name="filename" placeholder="hello-world.md" required />
-            </label>
-            <button type="submit">Create file</button>
+            <FormField label="Collection">
+              {(field) => <Input {...field} name="collection" placeholder="blog" />}
+            </FormField>
+            <FormField label="Filename">
+              {(field) => <Input {...field} name="filename" placeholder="hello-world.md" required />}
+            </FormField>
+            <Button type="submit">Create file</Button>
           </form>
         </section>
       ) : null}
@@ -187,9 +186,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                         <StatusBadge status={file.status}>{formatFileStatus(file.status)}</StatusBadge>
                         {userCanEdit ? (
                           <form action={stageContentDeletion.bind(null, projectId, file.path)}>
-                            <button type="submit" disabled={file.status === 'pending-delete'}>
+                            <Button type="submit" variant="secondary" disabled={file.status === 'pending-delete'}>
                               Delete
-                            </button>
+                            </Button>
                           </form>
                         ) : null}
                       </div>

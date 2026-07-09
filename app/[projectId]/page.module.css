@@ -131,23 +131,6 @@
   grid-template-columns: minmax(160px, 0.8fr) minmax(220px, 1fr) auto;
 }
 
-.newFileForm label {
-  display: grid;
-  gap: var(--sv-space-2);
-  color: var(--sv-color-text-primary);
-  font-weight: var(--sv-font-weight-semibold);
-}
-
-.newFileForm input {
-  min-width: 0;
-  border: 1px solid var(--sv-color-border-strong);
-  border-radius: var(--sv-radius-md);
-  background: var(--sv-color-surface);
-  color: var(--sv-color-text-primary);
-  font: inherit;
-  padding: var(--sv-space-2) var(--sv-space-3);
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -161,17 +144,7 @@
   gap: var(--sv-space-2);
 }
 
-.publishAllForm label {
-  align-items: center;
-  display: flex;
-  gap: var(--sv-space-1);
-  color: var(--sv-color-text-secondary);
-  font-size: var(--sv-font-size-sm);
-}
-
-.actions a,
-.actions button,
-.newFileForm button {
+.actions a {
   border: 1px solid var(--sv-color-border-strong);
   border-radius: var(--sv-radius-md);
   background: var(--sv-color-surface);
@@ -182,18 +155,8 @@
   text-decoration: none;
 }
 
-.actions a:hover,
-.actions button:hover,
-.newFileForm button:hover {
+.actions a:hover {
   background: var(--sv-color-surface-sunken);
-}
-
-.actions form:first-child button,
-.actions a:first-child,
-.newFileForm button {
-  background: var(--sv-color-accent);
-  border-color: var(--sv-color-accent);
-  color: var(--sv-color-text-on-accent);
 }
 
 .contentPanel {
@@ -272,22 +235,6 @@
   justify-content: flex-end;
 }
 
-.fileActions button {
-  border: 1px solid var(--sv-color-border);
-  border-radius: var(--sv-radius-sm);
-  background: var(--sv-color-surface);
-  color: var(--sv-color-text-primary);
-  cursor: pointer;
-  font: inherit;
-  padding: var(--sv-space-1) var(--sv-space-2);
-}
-
-.actions button:disabled,
-.fileActions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .eventList {
   display: grid;
   border: 1px solid var(--sv-color-border);
@@ -355,7 +302,10 @@
   text-decoration: none;
 }
 
-@media (max-width: 920px) {
+/* 768px matches the platform's canonical mobile breakpoint
+   (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile), not a plugin-local
+   guess — see docs/adhoc/plainwrite-code-review-and-fix-plan.md P3-3. */
+@media (max-width: 768px) {
   .heroGrid,
   .grid {
     grid-template-columns: 1fr;
