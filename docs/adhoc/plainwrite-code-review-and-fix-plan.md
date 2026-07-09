@@ -127,13 +127,11 @@ rate-limit vs not-found).
    `roadmap.md` PLW-010 now restores them in the same PR that implements the
    resolvers.
 
-3. **Member invite takes a raw user-ID string.** `inviteProjectMember` inserts
-   whatever `userId` string is typed into the settings form — no existence
-   check against `sdk.directory` (which is available and already used in
-   `getProject`), no self-demotion guard beyond owner-count, no notification
-   (permission declared). Typo → phantom member row. **Fix:** resolve the id
-   via `sdk.directory` before insert (reject unknown); longer-term use a
-   directory picker UI.
+3. ~~**Member invite takes a raw user-ID string.**~~ ✅ Fixed. Resolves the
+   invited ID via `sdk.directory.resolveUsers` before insert/update, rejecting
+   unknown/inactive users instead of creating a phantom member row. A
+   directory-picker UI (replacing the raw text `<input>` in the settings form)
+   remains a longer-term follow-up, not done here.
 
 4. **No fetch timeout in the GitHub provider.** `fetchGitHubJson` has no
    `AbortSignal` — a hung GitHub connection hangs the server action (and the
@@ -207,7 +205,7 @@ rate-limit vs not-found).
 | 3 | `fix/credential-lifecycle` | P1-2 + P1-3 + the pending PLW-004 credential tests (roadmap already owes them). | patch | ✅ done |
 | 4 | `fix/path-scope-enforcement` | P2-1: pathPrefix + extension + `..` validation across editor state, drafts, publish. Tests. (Pull-forward slice of PLW-017.) | patch | ✅ done |
 | 5 | `chore/manifest-permission-trim` | P2-2: trim manifest to used permissions. OAuth provider block kept as-is — PLW-009 landed since the review, so it's no longer dead. Note in roadmap PLW-010. | none (manifest change — re-validate against platform schema) | ✅ done |
-| 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch | pending |
+| 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch | ✅ done |
 | 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | pending |
 | 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | pending |
 | 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | pending |

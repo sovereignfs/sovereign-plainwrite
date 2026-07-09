@@ -1278,6 +1278,14 @@ export async function inviteProjectMember(projectId: string, formData: FormData)
   if (!invitedUserId) throw new Error('User ID is required.');
   if (!isProjectRole(role)) throw new Error('Invalid project role.');
 
+  // Resolve against the platform directory before inserting a membership
+  // row — otherwise a typo'd ID silently creates a phantom member that never
+  // shows up as an active user anywhere (getProject filters display fields
+  // through the same resolveUsers call, so a phantom row would just render
+  // blank forever instead of failing loudly at invite time).
+  const [invitedUser] = await sdk.directory.resolveUsers({ ids: [invitedUserId] });
+  if (!invitedUser) throw new Error('No active user found with that ID.');
+
   const existing = await db
     .select()
     .from(plainwriteProjectMembers)
