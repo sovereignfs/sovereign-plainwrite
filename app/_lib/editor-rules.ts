@@ -10,8 +10,8 @@ export function parseMarkdownDocument(content: string): MarkdownDocument {
   }
 
   return {
-    frontmatterYaml: match[1]!.trim(),
-    body: content.slice(match[0].length).replace(/^\r?\n/, ''),
+    frontmatterYaml: match[1]?.trim() ?? '',
+    body: content.slice(match[0]?.length ?? 0).replace(/^\r?\n/, ''),
   };
 }
 
@@ -82,14 +82,14 @@ export function renderSafeMarkdownPreview(markdown: string) {
     const heading = /^(#{1,3})\s+(.+)$/.exec(line);
     if (heading) {
       flushList();
-      const level = heading[1]!.length;
-      blocks.push(`<h${level}>${renderInline(heading[2]!)}</h${level}>`);
+      const level = heading[1]?.length ?? 1;
+      blocks.push(`<h${level}>${renderInline(heading[2] ?? '')}</h${level}>`);
       continue;
     }
 
     const listItem = /^[-*]\s+(.+)$/.exec(line);
     if (listItem) {
-      listItems.push(listItem[1]!);
+      listItems.push(listItem[1] ?? '');
       continue;
     }
 

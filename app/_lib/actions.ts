@@ -816,8 +816,8 @@ export async function inviteProjectMember(projectId: string, formData: FormData)
     .limit(1);
 
   if (existing.length) {
-    const existingMember = existing[0]!;
-    if (existingMember.role === 'owner' && role !== 'owner') {
+    const existingMember = existing[0];
+    if (existingMember?.role === 'owner' && role !== 'owner') {
       const ownerCount = await countProjectOwners(db, tenantId, projectId);
       if (ownerCount <= 1) {
         throw new Error('The last owner cannot be demoted.');
