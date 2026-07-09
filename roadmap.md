@@ -514,6 +514,11 @@ Expose platform integrations after the core project workflow exists.
 
 Implementation requirements:
 
+- Restore `notifications:send`, `data:provide`, `data:export`, `data:import`,
+  and `activity:write` to `manifest.json` `permissions`, and the
+  `plainwrite.projects`/`plainwrite.content-index`/`plainwrite.drafts`
+  `data.provides` entries (trimmed pending this task — see SPEC.md's manifest
+  section).
 - Implement read-only data contracts:
   - `plainwrite.projects` v1.
   - `plainwrite.content-index` v1.

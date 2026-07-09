@@ -79,7 +79,18 @@ The platform now has a clearer path for this proposal's open gaps:
 | `repository`                       | `https://github.com/sovereignfs/sovereign-plainwrite`                                            |
 | `compatibility.minPlatformVersion` | `0.18.2` — current platform baseline with `sdk.secrets`, `sdk.connections`, provider config, `sdk.data`, `sdk.directory`, portability, notifications, activity, and required UI primitives |
 
-Proposed `manifest.json`:
+**Current implementation state:** the live `manifest.json` declares only `auth:session`,
+`db:readWrite`, and `connections.providers.git.github` — the permissions and
+`data.provides` contracts below (`notifications:send`, `data:provide`,
+`data:export`, `data:import`, `activity:write`, `plainwrite.projects`,
+`plainwrite.content-index`, `plainwrite.drafts`) are the target shape once
+PLW-010 lands. A declared-but-unimplemented permission or data contract is
+misleading to an admin reviewing install-time permissions and would error for
+any external consumer that discovers it before a resolver exists, so they're
+added back to the manifest in the same PR that implements them rather than
+declared upfront.
+
+Proposed `manifest.json` (target shape once PLW-010 lands):
 
 ```json
 {

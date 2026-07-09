@@ -10,34 +10,7 @@
   "shell": "default",
   "icon": "icon.svg",
   "database": "shared",
-  "permissions": [
-    "auth:session",
-    "db:readWrite",
-    "notifications:send",
-    "data:provide",
-    "data:export",
-    "data:import",
-    "activity:write"
-  ],
-  "data": {
-    "provides": [
-      {
-        "contract": "plainwrite.projects",
-        "version": 1,
-        "description": "Plainwrite projects visible to the current user."
-      },
-      {
-        "contract": "plainwrite.content-index",
-        "version": 1,
-        "description": "File metadata and searchable snippets for explicitly shared projects."
-      },
-      {
-        "contract": "plainwrite.drafts",
-        "version": 1,
-        "description": "Draft metadata for the current user; full content is never exposed by default."
-      }
-    ]
-  },
+  "permissions": ["auth:session", "db:readWrite"],
   "connections": {
     "providers": [
       {

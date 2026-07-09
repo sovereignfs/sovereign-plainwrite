@@ -118,17 +118,14 @@ rate-limit vs not-found).
    segments, extension in the adapter's allowlist. This is PLW-017 territory —
    pull this slice forward.
 
-2. **Manifest over-declaration.** `manifest.json` declares
-   `notifications:send`, `data:provide/export/import`, `activity:write`, three
-   `data.provides` contracts, and the GitHub OAuth connection provider — none
-   implemented (`grep` finds zero uses; the OAuth callback route is a 501 stub
-   for PLW-009). Declared-but-dead surface misleads admins reviewing
-   permissions at install time, and declared data contracts with no resolver
-   will break consumers that discover them. **Fix (choose one):** trim the
-   manifest to what v0.1 actually uses (`auth:session`, `db:readWrite`) and
-   re-add per task; or implement PLW-010 before any release. Either way the
-   OAuth `connections.providers` block should be removed or clearly gated
-   until PLW-009 lands.
+2. ~~**Manifest over-declaration.**~~ ✅ Fixed. `manifest.json` declared
+   `notifications:send`, `data:provide/export/import`, `activity:write`, and
+   three `data.provides` contracts with zero implementation (PLW-010 territory).
+   The OAuth `connections.providers` block was flagged too at review time, but
+   PLW-009 has since landed and genuinely implements it — that part needed no
+   change. Trimmed the still-unimplemented permissions/data contracts;
+   `roadmap.md` PLW-010 now restores them in the same PR that implements the
+   resolvers.
 
 3. **Member invite takes a raw user-ID string.** `inviteProjectMember` inserts
    whatever `userId` string is typed into the settings form — no existence
@@ -209,7 +206,7 @@ rate-limit vs not-found).
 | 2 | `chore/remove-dead-lib-tree` | P1-1: delete/shim dead `lib/` code, port the two test files to the live modules, update `vitest.config.ts`, amend SPEC directory section. No behaviour change. | none | ✅ done |
 | 3 | `fix/credential-lifecycle` | P1-2 + P1-3 + the pending PLW-004 credential tests (roadmap already owes them). | patch | ✅ done |
 | 4 | `fix/path-scope-enforcement` | P2-1: pathPrefix + extension + `..` validation across editor state, drafts, publish. Tests. (Pull-forward slice of PLW-017.) | patch | ✅ done |
-| 5 | `chore/manifest-permission-trim` | P2-2: trim manifest to used permissions; drop/gate OAuth provider block until PLW-009; note in roadmap. | none (manifest change — re-validate against platform schema) | pending |
+| 5 | `chore/manifest-permission-trim` | P2-2: trim manifest to used permissions. OAuth provider block kept as-is — PLW-009 landed since the review, so it's no longer dead. Note in roadmap PLW-010. | none (manifest change — re-validate against platform schema) | ✅ done |
 | 6 | `fix/invite-directory-validation` | P2-3: validate invitee via `sdk.directory`. | patch | pending |
 | 7 | `chore/platform-conventions` | P3-1 + P3-2 (tsconfig extends, catalog versions). Verify typecheck/build in the monorepo mount after. | none | pending |
 | 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | pending |
