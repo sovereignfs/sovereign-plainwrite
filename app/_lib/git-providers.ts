@@ -1,6 +1,26 @@
 import { Buffer } from 'node:buffer';
 import type { PlainwriteProject } from '../_db/schema';
 
+const GITHUB_REQUEST_TIMEOUT_MS = 10_000;
+
+/**
+ * Thrown for any failed GitHub API response. `notFound` lets callers
+ * distinguish "this path doesn't exist" (safe to treat as a new file) from
+ * every other failure (rate limit, auth, network) which must never be
+ * silently treated as "no remote content".
+ */
+export class GitProviderError extends Error {
+  readonly status: number;
+  readonly notFound: boolean;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'GitProviderError';
+    this.status = status;
+    this.notFound = status === 404;
+  }
+}
+
 export interface GitCredential {
   token: string | null;
 }
@@ -101,6 +121,9 @@ class GitHubProvider implements GitProviderAdapter {
         .join('/')}?ref=${encodeURIComponent(project.branch)}`,
       credential.token,
     );
+    if (body.encoding === 'none') {
+      throw new Error('GitHub file exceeds the 1 MB API size limit and cannot be loaded through Plainwrite.');
+    }
     if (!body.content || body.encoding !== 'base64') {
       throw new Error('GitHub file response did not include base64 content.');
     }
@@ -284,12 +307,21 @@ async function fetchGitHubJson<T>(
   token?: string | null,
   init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: gitHubHeaders(token, init.headers),
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: gitHubHeaders(token, init.headers),
+      signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      throw new GitProviderError('GitHub request timed out.', 0);
+    }
+    throw error;
+  }
   if (!response.ok) {
-    throw new Error(sanitizeGitHubError(response.status));
+    throw new GitProviderError(sanitizeGitHubError(response.status), response.status);
   }
   return (await response.json()) as T;
 }
@@ -305,6 +337,7 @@ function gitHubHeaders(token?: string | null, initHeaders?: HeadersInit) {
   const headers = new Headers(initHeaders);
   headers.set('accept', 'application/vnd.github+json');
   headers.set('content-type', 'application/json');
+  headers.set('x-github-api-version', '2022-11-28');
   if (token) headers.set('authorization', `Bearer ${token}`);
   return headers;
 }

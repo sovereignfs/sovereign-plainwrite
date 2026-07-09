@@ -23,7 +23,7 @@ import {
 } from '../_db/schema';
 import { defaultMarkdownTemplate, type ContentFile } from './content-rules';
 import { buildContentFilePath } from './editor-rules';
-import { getGitProvider } from './git-providers';
+import { getGitProvider, GitProviderError } from './git-providers';
 import { buildGitHubOAuthUrl, exchangeGitHubOAuthCode } from './oauth-rules';
 import {
   assertProjectRole,
@@ -100,6 +100,15 @@ interface EditorState {
   status: 'unmodified' | 'draft' | 'committed';
   commitMessage: string | null;
   currentUserRole: ProjectRole;
+  /**
+   * Set when the remote file couldn't be loaded and the failure was NOT a
+   * definitive "file does not exist". Callers must render a retry state and
+   * must never let the editor open for save/commit/publish in this case —
+   * otherwise a transient GitHub failure (rate limit, outage, expired token)
+   * looks identical to "new file" and a save+publish overwrites the real
+   * remote file with placeholder content.
+   */
+  loadError: string | null;
 }
 
 interface PublishEventSummary {
@@ -460,6 +469,7 @@ export async function getEditorState(projectId: string, path: string): Promise<E
       status: draft.status,
       commitMessage: draft.commitMessage,
       currentUserRole,
+      loadError: null,
     };
   }
 
@@ -476,10 +486,20 @@ export async function getEditorState(projectId: string, path: string): Promise<E
     .limit(1);
   const cached = cachedRows[0];
 
+  if (project.isPrivate && !credential.token) {
+    return {
+      project,
+      path,
+      content: '',
+      baseSha: null,
+      status: 'unmodified',
+      commitMessage: null,
+      currentUserRole,
+      loadError: 'Connect a GitHub token before opening private repository content.',
+    };
+  }
+
   try {
-    if (project.isPrivate && !credential.token) {
-      throw new Error('Connect a GitHub token before opening private repository content.');
-    }
     const provider = getGitProvider(project.provider);
     const remote = await provider.getFileContent(project, path, { token: credential.token });
     return {
@@ -490,16 +510,36 @@ export async function getEditorState(projectId: string, path: string): Promise<E
       status: 'unmodified',
       commitMessage: null,
       currentUserRole,
+      loadError: null,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof GitProviderError && error.notFound) {
+      return {
+        project,
+        path,
+        content: defaultMarkdownTemplate(path),
+        baseSha: cached?.sha ?? null,
+        status: 'unmodified',
+        commitMessage: null,
+        currentUserRole,
+        loadError: null,
+      };
+    }
+
+    // Any error other than a definitive "not found" must not be treated as
+    // "new file" — that would let a transient failure masquerade as an empty
+    // file, and a subsequent save+publish would overwrite the real remote
+    // content with placeholder text (see class doc on EditorState.loadError).
+    const message = error instanceof Error ? error.message : 'Could not load the remote file.';
     return {
       project,
       path,
-      content: defaultMarkdownTemplate(path),
-      baseSha: cached?.sha ?? null,
+      content: '',
+      baseSha: null,
       status: 'unmodified',
       commitMessage: null,
       currentUserRole,
+      loadError: message,
     };
   }
 }
