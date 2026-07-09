@@ -308,6 +308,12 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
           <h2 id="members">Members</h2>
           <StatusBadge status="unmodified">{project.members.length} total</StatusBadge>
         </div>
+        {project.directoryLookupFailed ? (
+          <p className={styles.errorText}>
+            Could not load member display names and emails from the platform directory. Showing
+            user IDs only.
+          </p>
+        ) : null}
         <div className={styles.members}>
           {project.members.map((member) => (
             <div key={member.userId} className={styles.member}>

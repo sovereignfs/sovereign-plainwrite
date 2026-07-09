@@ -286,6 +286,12 @@
   padding: var(--sv-space-4);
 }
 
+.syncWarning {
+  margin: 0;
+  color: var(--sv-color-warning-text);
+  font-size: var(--sv-font-size-sm);
+}
+
 .grid {
   display: grid;
   gap: var(--sv-space-4);

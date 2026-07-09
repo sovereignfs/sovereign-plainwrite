@@ -21,12 +21,13 @@ interface ProjectPageProps {
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
-  const [project, contentFiles, publishEvents] = await Promise.all([
+  const [project, contentFileList, publishEvents] = await Promise.all([
     getProject(projectId).catch(() => null),
-    listContentFiles(projectId).catch(() => []),
+    listContentFiles(projectId).catch(() => ({ files: [], syncError: null })),
     listPublishEvents(projectId).catch(() => []),
   ]);
   if (!project) notFound();
+  const { files: contentFiles, syncError: contentSyncError } = contentFileList;
   const userCanEdit = canEditProject(project.currentUserRole);
   const userCanManage = canManageProject(project.currentUserRole);
   const metadataLabel = formatMetadataVisibility(project.metadataVisibility);
@@ -171,6 +172,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             {contentFiles.length > 0 ? `${contentFiles.length} files` : 'Not synced'}
           </StatusBadge>
         </div>
+        {contentSyncError ? <p className={styles.syncWarning}>{contentSyncError}</p> : null}
         {contentGroups.length > 0 ? (
           <div className={styles.collections}>
             {contentGroups.map((group) => (

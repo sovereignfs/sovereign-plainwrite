@@ -7,9 +7,10 @@
 > `connections.providers[].scopes`) was fixed separately in
 > `sovereignfs/sovereign` PR #181 (draft, not yet merged as of this writing).
 > Two additional P1s from a follow-up review (publish-all bookkeeping/conflict
-> classification, item 6a) are also done. Remaining open items: P3-8/9/10
-> (ride-along polish, not scheduled) and the item-9 visual QA flagged below —
-> nothing else is outstanding from this doc.
+> classification, item 6a) are also done, as are P3-9 (transaction wrap) and
+> P3-10 (silent-catch surfaces). Remaining open items: P3-8 (intentionally
+> deferred — waits on DS Phase B, see its finding) and the item-9 visual QA
+> flagged below — nothing else is outstanding from this doc.
 > **Repo under review:** this repository (`sovereign-plainwrite`, on `main`) —
 > mounted in the platform monorepo as `plugins/sovereign-plainwrite.local/`.
 > All file paths below are relative to this repo's root.
@@ -200,20 +201,31 @@ rate-limit vs not-found).
    `NewProjectDialog`, not a new DS capability). Swap for the DS
    `ConfirmDialog` when Phase B ships.
 8. **Mobile is a squeeze, not a design.** `layout.module.css` collapses the
-   project sidebar above the content at ≤720px; the editor stacks three dense
-   panels. Fine for v0.1 scaffolding, but flag: when the DS Phase B surfaces
-   (Sheet, OverlayHeader, adaptive Menu) land, Plainwrite should adopt the
-   same mobile taxonomy as tasks rather than inventing its own. DS-first —
-   don't build plugin-local overlays here.
-9. **`refreshProjectContentCache` is delete-then-insert without a
-   transaction** — two concurrent syncs can race into unique-index errors, and
-   a crash between the statements empties the cache until the next TTL sync.
-   Low impact (self-healing), but wrap in a transaction when the SDK client
-   exposes one, or tolerate conflict errors explicitly.
-10. **Silent catches worth softening:** `getProject`'s directory lookup and
-    `listContentFiles`' auto-refresh both swallow all errors (the latter has a
-    comment). Acceptable, but attach a `lastError`-style surface (the
-    credential row already has one) so failures are visible somewhere.
+   project sidebar above the content at ≤768px (was ≤720px before P3-3);
+   the editor stacks three dense panels. Fine for v0.1 scaffolding, but flag:
+   when the DS Phase B surfaces (Sheet, OverlayHeader, adaptive Menu) land,
+   Plainwrite should adopt the same mobile taxonomy as tasks rather than
+   inventing its own. DS-first — don't build plugin-local overlays here.
+   **Intentionally not actionable right now** — the finding's own fix is
+   "wait for DS Phase B and consume it," not a Plainwrite-side code change.
+   Building a plugin-local Sheet/OverlayHeader substitute today would be
+   exactly the anti-pattern the finding warns against (and CLAUDE.md's
+   DS-first rule forbids). Revisit once DS Phase B ships.
+9. ~~**`refreshProjectContentCache` is delete-then-insert without a
+   transaction**~~ ✅ Fixed. `sdk.db.getClient()` returns a real Drizzle client
+   (confirmed in `runtime/src/sdk-host.ts`), which does expose
+   `.transaction()`. Wrapped just the delete+insert pair — deliberately not
+   `inferMissingCollectionSchemas`, which does its own network I/O per
+   collection and must not run inside a held DB transaction. Regression test:
+   `app/_lib/__tests__/actions-sync-transaction.test.ts` asserts both
+   statements happen inside a single `db.transaction()` call.
+10. ~~**Silent catches worth softening**~~ ✅ Fixed. `getProject` now returns
+    `directoryLookupFailed: boolean`, surfaced as a warning on the settings
+    page's Members section. `listContentFiles` now returns
+    `{ files, syncError }` instead of a bare array (the one caller,
+    `app/[projectId]/page.tsx`, updated accordingly) with `syncError` shown
+    as an inline warning above the content file list. Both covered by tests
+    (`actions-directory-failure.test.ts`, `actions-content-sync-error.test.ts`).
 
 ---
 
@@ -232,7 +244,8 @@ rate-limit vs not-found).
 | 8 | `fix/editor-ux-guardrails` | P3-5 + P3-6 + P3-7 (dialog dismissal, dirty tracking + beforeunload, confirm pattern). | patch | ✅ done (in-app nav guard for P3-6 deferred — see finding 6) |
 | 9 | `chore/breakpoint-and-ds-controls` | P3-3 + P3-4: one breakpoint, DS form controls. Coordinate with DS Phase B (ConfirmDialog/Sheet) — don't hand-roll what B is about to ship. | none/patch | ✅ done — not visually verified, see note below |
 
-Items P3-8/9/10 ride along where they fit or wait for DS Phase B / PLW-017.
+P3-9 and P3-10 are done (see their findings above). P3-8 remains intentionally
+open — it's a "wait for DS Phase B" item, not a Plainwrite-side fix.
 
 **Item 6a detail — two P1s surfaced in a follow-up review after PLW-008/009
 merged:**

@@ -70,6 +70,14 @@ interface CredentialSummary {
 interface ProjectDetail extends ProjectSummary {
   members: ProjectMemberSummary[];
   credential: CredentialSummary | null;
+  /**
+   * Set when the platform directory lookup for member display names/emails
+   * failed — `members` still has real `userId`s but `displayName`/`email`
+   * fall back to `null` for all of them. Without this flag that degradation
+   * is silent and looks identical to "this instance just doesn't have
+   * profile data," not "something failed."
+   */
+  directoryLookupFailed: boolean;
 }
 
 interface GitHubOAuthStatus {
@@ -90,6 +98,17 @@ interface CollectionSchemaSummary {
 interface ContentFileSummary extends ContentFile {
   status: 'unmodified' | 'draft' | 'committed' | 'pending-delete' | 'conflict';
   lastSyncedAt: number;
+}
+
+interface ContentFileListResult {
+  files: ContentFileSummary[];
+  /**
+   * Set when the automatic TTL-triggered background refresh failed —
+   * `files` still reflects the last successful sync, not a live failure, so
+   * callers should show this rather than silently rendering possibly-stale
+   * data with no indication anything went wrong.
+   */
+  syncError: string | null;
 }
 
 interface EditorState {
@@ -270,12 +289,14 @@ export async function getProject(projectId: string): Promise<ProjectDetail> {
     .orderBy(asc(plainwriteProjectMembers.joinedAt));
 
   let directoryRows: Awaited<ReturnType<typeof sdk.directory.resolveUsers>> = [];
+  let directoryLookupFailed = false;
   try {
     directoryRows = await sdk.directory.resolveUsers({
       ids: memberRows.map((member) => member.userId),
     });
   } catch {
     directoryRows = [];
+    directoryLookupFailed = true;
   }
   const userById = new Map(directoryRows.map((user) => [user.id, user]));
   const credential = await getCredentialRow(db, tenantId, projectId, userId);
@@ -296,6 +317,7 @@ export async function getProject(projectId: string): Promise<ProjectDetail> {
         }
       : null,
     currentUserRole,
+    directoryLookupFailed,
     members: memberRows.map((member) => {
       const user = userById.get(member.userId);
       return {
@@ -389,12 +411,12 @@ export async function listCollectionSchemas(projectId: string): Promise<Collecti
   }));
 }
 
-export async function listContentFiles(projectId: string): Promise<ContentFileSummary[]> {
+export async function listContentFiles(projectId: string): Promise<ContentFileListResult> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
   const project = await getProjectRow(db, tenantId, projectId);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
-  if (!canViewCachedMetadata(project, credential.token)) return [];
+  if (!canViewCachedMetadata(project, credential.token)) return { files: [], syncError: null };
 
   let files = await db
     .select()
@@ -404,6 +426,7 @@ export async function listContentFiles(projectId: string): Promise<ContentFileSu
     )
     .orderBy(asc(plainwriteFileCache.collection), asc(plainwriteFileCache.path));
 
+  let syncError: string | null = null;
   if (shouldRefreshContentCache(files.map((file) => file.lastSyncedAt))) {
     try {
       if (!project.isPrivate || credential.token) {
@@ -420,7 +443,10 @@ export async function listContentFiles(projectId: string): Promise<ContentFileSu
           .orderBy(asc(plainwriteFileCache.collection), asc(plainwriteFileCache.path));
       }
     } catch {
-      // Automatic refresh should not block opening a project dashboard.
+      // Automatic refresh should not block opening a project dashboard —
+      // but the failure must still be visible somewhere rather than
+      // silently rendering the last-synced cache with no indication.
+      syncError = 'Automatic content sync failed. Showing the last successfully synced files.';
     }
   }
 
@@ -437,17 +463,20 @@ export async function listContentFiles(projectId: string): Promise<ContentFileSu
 
   const draftByPath = new Map(drafts.map((draft) => [draft.filePath, draft]));
 
-  return files.map((file) => {
-    const draft = draftByPath.get(file.path);
-    return {
-      path: file.path,
-      collection: file.collection,
-      filename: file.filename,
-      sha: file.sha,
-      lastSyncedAt: file.lastSyncedAt,
-      status: draft?.content === null ? 'pending-delete' : normalizeDraftStatus(draft?.status),
-    };
-  });
+  return {
+    files: files.map((file) => {
+      const draft = draftByPath.get(file.path);
+      return {
+        path: file.path,
+        collection: file.collection,
+        filename: file.filename,
+        sha: file.sha,
+        lastSyncedAt: file.lastSyncedAt,
+        status: draft?.content === null ? 'pending-delete' : normalizeDraftStatus(draft?.status),
+      };
+    }),
+    syncError,
+  };
 }
 
 export async function syncProjectContent(projectId: string) {
@@ -1539,29 +1568,37 @@ async function refreshProjectContentCache(
   const files = adapter.discoverContent(tree, project.pathPrefix);
   const ts = now();
 
-  await db
-    .delete(plainwriteFileCache)
-    .where(
-      and(
-        eq(plainwriteFileCache.tenantId, tenantId),
-        eq(plainwriteFileCache.projectId, project.id),
-      ),
-    );
+  // Delete-then-insert as one transaction so two concurrent syncs can't race
+  // into unique-index errors on plainwrite_file_cache, and a crash between
+  // the two statements can't leave the cache empty until the next TTL sync.
+  // Scoped to just these two local writes — inferMissingCollectionSchemas
+  // below does its own network I/O (provider.getFileContent per collection)
+  // and must not run inside a held DB transaction.
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(plainwriteFileCache)
+      .where(
+        and(
+          eq(plainwriteFileCache.tenantId, tenantId),
+          eq(plainwriteFileCache.projectId, project.id),
+        ),
+      );
 
-  if (files.length > 0) {
-    await db.insert(plainwriteFileCache).values(
-      files.map((file) => ({
-        id: randomUUID(),
-        tenantId,
-        projectId: project.id,
-        path: file.path,
-        collection: file.collection,
-        filename: file.filename,
-        sha: file.sha,
-        lastSyncedAt: ts,
-      })),
-    );
-  }
+    if (files.length > 0) {
+      await tx.insert(plainwriteFileCache).values(
+        files.map((file) => ({
+          id: randomUUID(),
+          tenantId,
+          projectId: project.id,
+          path: file.path,
+          collection: file.collection,
+          filename: file.filename,
+          sha: file.sha,
+          lastSyncedAt: ts,
+        })),
+      );
+    }
+  });
 
   await inferMissingCollectionSchemas(db, tenantId, project, token, files);
 }
