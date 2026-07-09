@@ -1,24 +1,22 @@
 # Plainwrite (sovereign-plainwrite) — code review & fix plan
 
-> **Status:** review complete 2026-07-09; fixes not started. Written for handoff —
-> any agent can pick this up. Re-verify line references before editing; files may
-> have drifted.
+> **Status:** review complete 2026-07-09; all 9 numbered fix-plan items below
+> are done, committed directly to `main` (per developer instruction partway
+> through — items 1–2 landed as branch/PR, items 3 onward as direct commits).
+> A platform-repo bug discovered along the way (manifest schema rejecting
+> `connections.providers[].scopes`) was fixed separately in
+> `sovereignfs/sovereign` PR #181 (draft, not yet merged as of this writing).
+> Two additional P1s from a follow-up review (publish-all bookkeeping/conflict
+> classification, item 6a) are also done. Remaining open items: P3-8/9/10
+> (ride-along polish, not scheduled) and the item-9 visual QA flagged below —
+> nothing else is outstanding from this doc.
 > **Repo under review:** this repository (`sovereign-plainwrite`, on `main`) —
 > mounted in the platform monorepo as `plugins/sovereign-plainwrite.local/`.
-> All file paths below are relative to this repo's root. All fixes land here as
-> this repo's own branches/PRs, following `roadmap.md` task IDs (PLW-*). Do not
-> mix with platform-monorepo changes.
-> **Roadmap position:** PLW-001–003 complete; PLW-004 done minus credential
-> tests; PLW-005 complete (read-only sync); PLW-006 partial; PLW-007 complete
-> (single-file publish). PLW-008+ (publish-all, OAuth, data contracts,
-> hardening) pending. Findings below distinguish *bugs in shipped code* from
-> *known future work* — don't re-report the latter as defects.
-> **Working tree note:** two files carry uncommitted lint-style fixes
-> (`app/_lib/actions.ts`, `app/_lib/editor-rules.ts` — non-null assertions →
-> optional chaining). Keep them; fold into the next commit. One of them
-> introduced a wrong fallback: `editor-rules.ts` `heading[1]?.length ?? 0`
-> renders `<h0>` if the group were ever absent — unreachable today, but the
-> default should be `1`, not `0`.
+> All file paths below are relative to this repo's root.
+> **Roadmap position (current):** PLW-001–009 complete. PLW-010 (data
+> contracts, portability, activity, notifications) is the next open v0.1 task;
+> its manifest permissions/`data.provides` were deliberately trimmed pending
+> that task (see finding 2 below and `roadmap.md` PLW-010).
 
 ## Verified health (all green as of review)
 
@@ -272,11 +270,15 @@ merged:**
 ## Verification per task
 
 - `pnpm typecheck` + `pnpm test` in the plugin, plus monorepo `pnpm lint`
-  (SDK boundary) and `pnpm format:check` from the platform root.
-- Task 1 additionally: manual check — open an existing file with the provider
-  mocked to fail transiently → editor must show the retry state, never the
-  template; publish must be impossible from that state.
-- Task 5: re-validate `manifest.json` against `packages/manifest` schema
-  (platform `pnpm test` covers the validator; the generate step consumes it).
-- Nothing is committed or pushed without the developer's explicit go-ahead
-  (standing instruction for this working session).
+  (SDK boundary) and `pnpm format:check` from the platform root — run and
+  green for every item above.
+- Task 1: not manually verified end-to-end (opening a file with the provider
+  mocked to fail transiently) — no live GitHub credentials in the working
+  environment. Covered instead by `app/_lib/__tests__/git-providers.test.ts`'s
+  404-vs-other-status classification tests, which is what the fix's branching
+  logic depends on.
+- Task 5: re-validated `manifest.json` against `packages/manifest`'s
+  `validateManifest()` directly (see PR #181 in `sovereignfs/sovereign`) —
+  passes once that PR is merged; the schema bug it fixes predates this task.
+- Item 9 (DS form controls / breakpoints): **not visually verified** — see the
+  note under finding 4. Recommend a manual pass before the next release.

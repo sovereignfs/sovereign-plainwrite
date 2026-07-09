@@ -712,6 +712,13 @@ Portability and deletion.
 
 Perform a focused security pass before declaring Plainwrite stable.
 
+Progress:
+
+- [x] Content path-scope enforcement (pathPrefix + extension + `..`
+  validation across `getEditorState`, `upsertDraft`, `publishCommittedDraft`)
+  pulled forward and completed ahead of this task — see
+  `docs/adhoc/plainwrite-code-review-and-fix-plan.md` P2-1.
+
 Implementation requirements:
 
 - Verify no credentials appear in logs, database tables, exports, activity,
