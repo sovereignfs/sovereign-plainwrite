@@ -9,6 +9,7 @@ import {
   hardDeleteProject,
   inviteProjectMember,
   listCollectionSchemas,
+  listPublishEvents,
   removeProjectMember,
   resetCollectionSchema,
   restoreProject,
@@ -28,10 +29,11 @@ interface SettingsPageProps {
 
 export default async function ProjectSettingsPage({ params }: SettingsPageProps) {
   const { projectId } = await params;
-  const [project, schemas, oauthStatus] = await Promise.all([
+  const [project, schemas, oauthStatus, publishEvents] = await Promise.all([
     getProject(projectId).catch(() => null),
     listCollectionSchemas(projectId).catch(() => []),
     getGitHubOAuthStatus(projectId).catch(() => null),
+    listPublishEvents(projectId).catch(() => []),
   ]);
   if (!project) notFound();
   const userCanEdit = canEditProject(project.currentUserRole);
@@ -338,6 +340,40 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
         {userCanManage ? (
           <InviteMemberForm projectId={project.id} action={inviteProjectMember.bind(null, project.id)} />
         ) : null}
+      </section>
+
+      <section className={styles.panel} aria-labelledby="publish-history">
+        <div className={styles.panelHeader}>
+          <div>
+            <h2 id="publish-history">Publish history</h2>
+            <p className={styles.panelDescription}>Recent times posts went live on your site.</p>
+          </div>
+          <StatusBadge status={publishEvents.length > 0 ? 'synced' : 'unmodified'}>
+            {publishEvents.length > 0 ? `${publishEvents.length} recent` : 'No history yet'}
+          </StatusBadge>
+        </div>
+        {publishEvents.length > 0 ? (
+          <div className={styles.eventList}>
+            {publishEvents.map((event) => (
+              <article key={event.id} className={styles.eventRow}>
+                <div>
+                  <h3>{event.message}</h3>
+                  <p>{event.files.join(', ') || 'No posts recorded'}</p>
+                  {event.errorSummary ? <p>{event.errorSummary}</p> : null}
+                </div>
+                <div className={styles.eventMeta}>
+                  <StatusBadge status={event.status === 'success' ? 'synced' : 'error'}>
+                    {event.status === 'success' ? 'Live' : event.errorCode || 'Failed'}
+                  </StatusBadge>
+                  <span>{formatTimestamp(event.createdAt)}</span>
+                  {event.commitSha ? <code>{event.commitSha.slice(0, 7)}</code> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.helpText}>Publish a ready post to see history here.</p>
+        )}
       </section>
 
       {userCanManage ? (

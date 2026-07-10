@@ -51,6 +51,17 @@ interface ProjectSummary extends PlainwriteProject {
   currentUserRole: ProjectRole;
 }
 
+export interface ProjectListItem extends ProjectSummary {
+  /** Posts with a local, not-yet-ready draft for the current user. */
+  writingCount: number;
+  /** Posts marked ready to publish for the current user. */
+  readyCount: number;
+  /** Approximate count of posts already on the site (last synced file-cache size). */
+  liveCount: number;
+  /** True when the current user's publishing credential needs reconnecting. */
+  needsAttention: boolean;
+}
+
 interface ProjectMemberSummary extends PlainwriteProjectMember {
   displayName: string | null;
   email: string | null;
@@ -248,7 +259,9 @@ function assertContentPathAllowed(project: PlainwriteProject, path: string) {
   }
 }
 
-export async function listProjects(options: { includeArchived?: boolean } = {}) {
+export async function listProjects(
+  options: { includeArchived?: boolean } = {},
+): Promise<ProjectListItem[]> {
   const { db, userId, tenantId } = await getContext();
   const memberships = await db
     .select()
@@ -281,9 +294,71 @@ export async function listProjects(options: { includeArchived?: boolean } = {}) 
       .map((membership) => [membership.projectId, membership.role as ProjectRole]),
   );
 
-  return projects.flatMap((project): ProjectSummary[] => {
+  // Three batched queries (not per-project) so the site list stays a fixed
+  // number of round trips regardless of how many projects the user belongs
+  // to — feeds the "N writing · N ready · N live" summary on each site card.
+  const [draftRows, credentialRows, fileCacheRows] = await Promise.all([
+    db
+      .select()
+      .from(plainwriteDrafts)
+      .where(
+        and(
+          eq(plainwriteDrafts.tenantId, tenantId),
+          eq(plainwriteDrafts.userId, userId),
+          inArray(plainwriteDrafts.projectId, projectIds),
+          isNotNull(plainwriteDrafts.content),
+        ),
+      ),
+    db
+      .select()
+      .from(plainwriteCredentials)
+      .where(
+        and(
+          eq(plainwriteCredentials.tenantId, tenantId),
+          eq(plainwriteCredentials.userId, userId),
+          inArray(plainwriteCredentials.projectId, projectIds),
+        ),
+      ),
+    db
+      .select({ projectId: plainwriteFileCache.projectId })
+      .from(plainwriteFileCache)
+      .where(
+        and(
+          eq(plainwriteFileCache.tenantId, tenantId),
+          inArray(plainwriteFileCache.projectId, projectIds),
+        ),
+      ),
+  ]);
+
+  const writingByProject = new Map<string, number>();
+  const readyByProject = new Map<string, number>();
+  for (const draft of draftRows) {
+    const counts = draft.status === 'draft' ? writingByProject : readyByProject;
+    if (draft.status === 'draft' || draft.status === 'committed') {
+      counts.set(draft.projectId, (counts.get(draft.projectId) ?? 0) + 1);
+    }
+  }
+  const liveByProject = new Map<string, number>();
+  for (const row of fileCacheRows) {
+    liveByProject.set(row.projectId, (liveByProject.get(row.projectId) ?? 0) + 1);
+  }
+  const attentionProjectIds = new Set(
+    credentialRows.filter((row) => row.status === 'needs_reauth').map((row) => row.projectId),
+  );
+
+  return projects.flatMap((project): ProjectListItem[] => {
     const currentUserRole = roleByProjectId.get(project.id);
-    return currentUserRole ? [{ ...project, currentUserRole }] : [];
+    if (!currentUserRole) return [];
+    return [
+      {
+        ...project,
+        currentUserRole,
+        writingCount: writingByProject.get(project.id) ?? 0,
+        readyCount: readyByProject.get(project.id) ?? 0,
+        liveCount: liveByProject.get(project.id) ?? 0,
+        needsAttention: attentionProjectIds.has(project.id),
+      },
+    ];
   });
 }
 

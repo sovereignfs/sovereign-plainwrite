@@ -11,43 +11,108 @@
   gap: var(--sv-space-2);
 }
 
-.projectList {
+.projectGrid {
   display: grid;
-  gap: var(--sv-space-3);
+  gap: var(--sv-space-4);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
-.project {
-  display: flex;
+.cardLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.projectCard {
+  display: grid;
+  gap: var(--sv-space-2);
+}
+
+.cardHeader {
   align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sv-space-2);
+}
+
+.cardHeader h2 {
+  margin: 0;
+  font-size: var(--sv-font-size-md);
+}
+
+.dotOk,
+.dotWarning {
+  border-radius: 999px;
+  flex: 0 0 8px;
+  height: 8px;
+  width: 8px;
+}
+
+.dotOk {
+  background: var(--sv-color-success-text);
+}
+
+.dotWarning {
+  background: var(--sv-color-warning-text);
+}
+
+.projectMeta {
+  margin: 0;
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.pipelineText {
+  margin: 0;
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.attentionText {
+  margin: 0;
+  color: var(--sv-color-warning-text);
+  font-size: var(--sv-font-size-sm);
+}
+
+.cardFooter {
+  border-top: 1px solid var(--sv-color-border);
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+  margin-top: var(--sv-space-1);
+  padding-top: var(--sv-space-2);
+}
+
+.archivedList {
+  display: grid;
+  gap: var(--sv-space-2);
+}
+
+.archivedHeading {
+  margin: 0;
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.archivedRow {
+  align-items: center;
+  display: flex;
   justify-content: space-between;
   gap: var(--sv-space-4);
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
   color: var(--sv-color-text-primary);
-  padding: var(--sv-space-4);
+  padding: var(--sv-space-3) var(--sv-space-4);
   text-decoration: none;
-}
-
-.project h2,
-.project h3,
-.projectList h2 {
-  margin: 0;
-}
-
-.project p {
-  margin: var(--sv-space-1) 0 0;
-  color: var(--sv-color-text-secondary);
 }
 
 /* 768px matches the platform's canonical mobile breakpoint
    (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile), not a plugin-local
    guess — see docs/adhoc/plainwrite-code-review-and-fix-plan.md P3-3. */
 @media (max-width: 768px) {
-  .project {
+  .projectGrid {
     grid-template-columns: 1fr;
   }
 
-  .project {
+  .archivedRow {
     align-items: flex-start;
     flex-direction: column;
   }

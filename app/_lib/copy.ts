@@ -33,3 +33,16 @@ export function formatPostStatus(status: string): string {
   if (status === 'conflict') return 'Needs review';
   return status;
 }
+
+/** One-line pipeline summary for a site card, e.g. "2 writing · 1 ready · 12 live". */
+export function formatPipelineSummary(counts: {
+  writingCount: number;
+  readyCount: number;
+  liveCount: number;
+}): string {
+  const parts: string[] = [];
+  if (counts.writingCount > 0) parts.push(`${counts.writingCount} writing`);
+  if (counts.readyCount > 0) parts.push(`${counts.readyCount} ready`);
+  if (counts.liveCount > 0) parts.push(`${counts.liveCount} live`);
+  return parts.length > 0 ? parts.join(' · ') : 'No posts yet';
+}

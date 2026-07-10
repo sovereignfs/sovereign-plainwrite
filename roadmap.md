@@ -873,6 +873,62 @@ Verification:
 - `pnpm typecheck`, `pnpm lint`, `pnpm test` (92/92), `pnpm format:check` all
   pass from the platform root.
 
+### ✅ PLW-020 Navigation And Home Restructure
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` (proposal), phase 2 of 6.
+
+**Status:** ✅ Complete.
+
+Phase 2 of the writer-first UI redesign: site cards on both home states,
+pipeline tabs on the site content home, and moving owner-only/setup content
+(repository detail, setup checklist, publish history) off the daily view and
+into settings. Builds on PLW-019's plain-language copy.
+
+Progress as of 2026-07-10:
+
+- [x] Extended `listProjects()` (`app/_lib/actions.ts`) to batch-compute
+  per-project `writingCount`/`readyCount` (current user's own local drafts),
+  `liveCount` (file-cache size, an approximation of posts already on the
+  site), and a `needsAttention` flag (credential `status === 'needs_reauth'`)
+  — three queries total via `Promise.all`, not per-project, so the site list
+  stays a fixed number of round trips regardless of project count.
+- [x] Home (`app/page.tsx`): replaced the flat project list with a
+  `SiteCard` grid showing a health dot, the "N writing · N ready · N live"
+  pipeline summary (or the plain-language attention message when a
+  credential needs reconnecting), and role. Archived sites collapsed to a
+  compact list below. Empty state now also addresses invited writers who
+  won't create a site themselves.
+- [x] Site content home (`app/[projectId]/page.tsx`): added pipeline tabs
+  (All / Writing / Ready to publish / Live on site) via `NavTabs` and a
+  `?status=` query param, filtering the posts list — no client JS, server
+  render only. Removed the repository detail card, setup checklist card,
+  and the 4-card "Content/Writing/Ready to publish/People" grid (redundant
+  with the tabs and with settings).
+- [x] Settings (`settings/page.tsx`): added a "Publish history" panel
+  (relocated from the dashboard, using the same `listPublishEvents`).
+- [x] Added `formatPipelineSummary` to `app/_lib/copy.ts`.
+- [x] Added `app/_lib/__tests__/actions-list-projects.test.ts` covering the
+  new count/attention-flag aggregation.
+- [x] Verified via `pnpm typecheck`, `pnpm lint`, `pnpm test` (19 files / 94
+  tests), `pnpm format:check`, and a full `pnpm build` (webpack compiles
+  `/plainwrite`, `/plainwrite/[projectId]`,
+  `/plainwrite/[projectId]/editor/[...filePath]`, and
+  `/plainwrite/[projectId]/settings` with no errors) — live browser
+  verification was blocked this session by an unrelated Docker container
+  already bound to port 3000.
+
+Acceptance criteria:
+
+- The home page and site content home carry no git/technical vocabulary
+  beyond what PLW-019 already established.
+- Per-project pipeline counts and the credential-attention flag are correct
+  for multi-project users (covered by the new test).
+
+Verification:
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm test` (94/94), `pnpm format:check`,
+  `pnpm build` all pass from the platform root.
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

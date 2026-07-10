@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { Badge, EmptyState, PageHeader, StatusBadge } from '@sovereignfs/ui';
+import { Badge, Card, EmptyState, PageHeader, StatusBadge } from '@sovereignfs/ui';
 import { NewProjectDialog } from './_components/NewProjectDialog';
-import { listProjects } from './_lib/actions';
-import { formatProjectRole } from './_lib/copy';
+import { listProjects, type ProjectListItem } from './_lib/actions';
+import { formatPipelineSummary, formatProjectRole } from './_lib/copy';
 import styles from './page.module.css';
 
 export default async function ProjectsPage() {
@@ -31,40 +31,60 @@ export default async function ProjectsPage() {
         <EmptyState
           icon="pencil"
           heading="Connect your first site"
-          description="Plainwrite turns your website's content into a simple writing space. Connect a site to start writing and publishing."
+          description="Plainwrite turns your website's content into a simple writing space. Connect a site to start writing and publishing — or ask a site owner to add you if you're joining one."
         />
       ) : (
-        <section className={styles.projectList} aria-label="Active projects">
+        <section className={styles.projectGrid} aria-label="Active sites">
           {projects.map((project) => (
-            <Link key={project.id} href={`/plainwrite/${project.id}`} className={styles.project}>
-              <div>
-                <h2>{project.name}</h2>
-                <p>
-                  {project.repoOwner}/{project.repoName} · {project.branch} · {project.pathPrefix}
-                </p>
-              </div>
-              <StatusBadge status="unmodified">{formatProjectRole(project.currentUserRole)}</StatusBadge>
-            </Link>
+            <SiteCard key={project.id} project={project} />
           ))}
         </section>
       )}
 
       {archivedProjects.length > 0 ? (
-        <section className={styles.projectList} aria-label="Archived projects">
-          <h2>Archived</h2>
+        <section className={styles.archivedList} aria-label="Archived sites">
+          <p className={styles.archivedHeading}>
+            {archivedProjects.length} archived {archivedProjects.length === 1 ? 'site' : 'sites'}
+          </p>
           {archivedProjects.map((project) => (
-            <Link key={project.id} href={`/plainwrite/${project.id}/settings`} className={styles.project}>
-              <div>
-                <h3>{project.name}</h3>
-                <p>
-                  {project.repoOwner}/{project.repoName}
-                </p>
-              </div>
+            <Link
+              key={project.id}
+              href={`/plainwrite/${project.id}/settings`}
+              className={styles.archivedRow}
+            >
+              <span>{project.name}</span>
               <StatusBadge status="conflict">Archived</StatusBadge>
             </Link>
           ))}
         </section>
       ) : null}
     </div>
+  );
+}
+
+function SiteCard({ project }: { project: ProjectListItem }) {
+  return (
+    <Link href={`/plainwrite/${project.id}`} className={styles.cardLink}>
+      <Card interactive className={styles.projectCard}>
+        <div className={styles.cardHeader}>
+          <h2>{project.name}</h2>
+          <span
+            className={project.needsAttention ? styles.dotWarning : styles.dotOk}
+            aria-hidden="true"
+          />
+        </div>
+        <p className={styles.projectMeta}>
+          {project.repoOwner}/{project.repoName}
+        </p>
+        {project.needsAttention ? (
+          <p className={styles.attentionText}>Publishing access expired — reconnect</p>
+        ) : (
+          <p className={styles.pipelineText}>{formatPipelineSummary(project)}</p>
+        )}
+        <div className={styles.cardFooter}>
+          <span>{formatProjectRole(project.currentUserRole)}</span>
+        </div>
+      </Card>
+    </Link>
   );
 }

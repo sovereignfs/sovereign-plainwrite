@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Button, Card, FormField, Input, PageHeader, StatusBadge } from '@sovereignfs/ui';
+import { Button, FormField, Input, NavTabs, PageHeader, StatusBadge } from '@sovereignfs/ui';
 import {
   createContentFile,
   getProject,
   listContentFiles,
-  listPublishEvents,
   publishAllCommittedDrafts,
   stageContentDeletion,
   syncProjectContent,
@@ -13,106 +12,66 @@ import {
 import { PublishAllForm } from '../_components/PublishAllForm';
 import { SyncContentForm } from '../_components/SyncContentForm';
 import { groupContentFiles } from '../_lib/content-rules';
-import { formatMetadataVisibility, formatPostStatus, formatProjectRole } from '../_lib/copy';
+import { formatPostStatus, formatProjectRole } from '../_lib/copy';
 import { canEditProject, canManageProject } from '../_lib/project-rules';
 import styles from './page.module.css';
 
 interface ProjectPageProps {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ status?: string }>;
 }
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
+const PIPELINE_TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'draft', label: 'Writing' },
+  { key: 'committed', label: 'Ready to publish' },
+  { key: 'unmodified', label: 'Live on site' },
+] as const;
+
+type PipelineTabKey = (typeof PIPELINE_TABS)[number]['key'];
+
+export default async function ProjectPage({ params, searchParams }: ProjectPageProps) {
   const { projectId } = await params;
-  const [project, contentFileList, publishEvents] = await Promise.all([
+  const { status } = await searchParams;
+  const activeTab: PipelineTabKey = PIPELINE_TABS.some((tab) => tab.key === status)
+    ? (status as PipelineTabKey)
+    : 'all';
+
+  const [project, contentFileList] = await Promise.all([
     getProject(projectId).catch(() => null),
     listContentFiles(projectId).catch(() => ({ files: [], syncError: null })),
-    listPublishEvents(projectId).catch(() => []),
   ]);
   if (!project) notFound();
   const { files: contentFiles, syncError: contentSyncError } = contentFileList;
   const userCanEdit = canEditProject(project.currentUserRole);
   const userCanManage = canManageProject(project.currentUserRole);
-  const metadataLabel = formatMetadataVisibility(project.metadataVisibility);
   const repositoryLabel = `${project.repoOwner}/${project.repoName}`;
-  const contentGroups = groupContentFiles(contentFiles);
   const committedCount = contentFiles.filter((file) => file.status === 'committed').length;
-  const draftCount = contentFiles.filter((file) => file.status === 'draft').length;
+
+  const visibleFiles =
+    activeTab === 'all' ? contentFiles : contentFiles.filter((file) => file.status === activeTab);
+  const contentGroups = groupContentFiles(visibleFiles);
+  const tabItems = PIPELINE_TABS.map((tab) => {
+    const count =
+      tab.key === 'all' ? contentFiles.length : contentFiles.filter((f) => f.status === tab.key).length;
+    return {
+      label: `${tab.label} (${count})`,
+      href: tab.key === 'all' ? `/plainwrite/${projectId}` : `/plainwrite/${projectId}?status=${tab.key}`,
+      active: activeTab === tab.key,
+    };
+  });
 
   return (
     <div className={styles.page}>
       <PageHeader
         title={project.name}
-        description={`${repositoryLabel} · ${project.branch} · ${project.pathPrefix}`}
+        description={`${repositoryLabel} · ${project.branch}`}
         action={
           <StatusBadge status={project.archivedAt ? 'conflict' : 'unmodified'}>
             {formatProjectRole(project.currentUserRole)}
           </StatusBadge>
         }
       />
-
-      <section className={styles.heroGrid} aria-label="Project dashboard">
-        <Card className={styles.primaryCard} padding="lg">
-          <div className={styles.cardHeader}>
-            <div>
-              <p className={styles.eyebrow}>Site</p>
-              <h2>{repositoryLabel}</h2>
-            </div>
-            <StatusBadge status={project.archivedAt ? 'conflict' : 'unmodified'}>
-              {project.archivedAt ? 'Archived' : 'Active'}
-            </StatusBadge>
-          </div>
-          <dl className={styles.details}>
-            <div>
-              <dt>Branch</dt>
-              <dd>{project.branch}</dd>
-            </div>
-            <div>
-              <dt>Content folder</dt>
-              <dd>{project.pathPrefix}</dd>
-            </div>
-            <div>
-              <dt>Static site generator</dt>
-              <dd>{project.ssgType}</dd>
-            </div>
-            <div>
-              <dt>Visibility</dt>
-              <dd>{project.isPrivate ? 'Private' : 'Public'}</dd>
-            </div>
-            <div>
-              <dt>Who can see this info</dt>
-              <dd>{metadataLabel}</dd>
-            </div>
-            <div>
-              <dt>People</dt>
-              <dd>{project.members.length}</dd>
-            </div>
-          </dl>
-        </Card>
-
-        <Card className={styles.statusCard} padding="lg">
-          <div className={styles.cardHeader}>
-            <div>
-              <p className={styles.eyebrow}>Setup</p>
-              <h2>Getting your site ready</h2>
-            </div>
-            <StatusBadge status="warning">Pending</StatusBadge>
-          </div>
-          <ol className={styles.checklist}>
-            <li>
-              <span className={styles.doneDot} aria-hidden="true" />
-              Site connected
-            </li>
-            <li>
-              <span className={contentFiles.length > 0 ? styles.doneDot : styles.pendingDot} aria-hidden="true" />
-              {contentFiles.length > 0 ? `${contentFiles.length} posts found` : 'Posts not loaded yet'}
-            </li>
-            <li>
-              <span className={styles.pendingDot} aria-hidden="true" />
-              Publishing access not connected yet for private sites
-            </li>
-          </ol>
-        </Card>
-      </section>
 
       <section className={styles.actionsPanel} aria-label="Project actions">
         <div>
@@ -156,16 +115,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
       <section className={styles.contentPanel} aria-labelledby="content-files">
         <div className={styles.cardHeader}>
-          <div>
-            <h2 id="content-files">Posts</h2>
-            <p>
-              Everything in <strong>{project.pathPrefix}</strong>.
-            </p>
-          </div>
-          <StatusBadge status={contentFiles.length > 0 ? 'synced' : 'warning'}>
-            {contentFiles.length > 0 ? `${contentFiles.length} posts` : 'Not loaded yet'}
-          </StatusBadge>
+          <h2 id="content-files">Posts</h2>
         </div>
+        <NavTabs items={tabItems} aria-label="Filter posts by stage" className={styles.pipelineTabs} />
         {contentSyncError ? <p className={styles.syncWarning}>{contentSyncError}</p> : null}
         {contentGroups.length > 0 ? (
           <div className={styles.collections}>
@@ -194,110 +146,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </section>
             ))}
           </div>
-        ) : (
+        ) : contentFiles.length === 0 ? (
           <p className={styles.emptyText}>
             Check for site updates to load your posts. Private sites need publishing access
             connected in settings first.
           </p>
-        )}
-      </section>
-
-      <section className={styles.grid} aria-label="Project work areas">
-        <DashboardCard
-          title="Content"
-          status={contentFiles.length > 0 ? `${contentFiles.length} posts` : 'Not loaded yet'}
-          description="Your posts and sections appear here once loaded from your site."
-        />
-        <DashboardCard
-          title="Writing"
-          status={draftCount > 0 ? `${draftCount} in progress` : 'Nothing in progress'}
-          description="Posts you're still working on — only you can see these."
-        />
-        <DashboardCard
-          title="Ready to publish"
-          status={committedCount > 0 ? `${committedCount} ready` : 'Nothing ready yet'}
-          description="Posts marked ready go live together the next time you publish."
-        />
-        <DashboardCard
-          title="People"
-          status={`${project.members.length} total`}
-          description="Owners manage who can write here from settings."
-          href={`/plainwrite/${projectId}/settings`}
-        />
-      </section>
-
-      <section className={styles.contentPanel} aria-labelledby="publish-events">
-        <div className={styles.cardHeader}>
-          <div>
-            <h2 id="publish-events">Publish history</h2>
-            <p>Recent times posts went live on your site.</p>
-          </div>
-          <StatusBadge status={publishEvents.length > 0 ? 'synced' : 'unmodified'}>
-            {publishEvents.length > 0 ? `${publishEvents.length} recent` : 'No history yet'}
-          </StatusBadge>
-        </div>
-        {publishEvents.length > 0 ? (
-          <div className={styles.eventList}>
-            {publishEvents.map((event) => (
-              <article key={event.id} className={styles.eventRow}>
-                <div>
-                  <h3>{event.message}</h3>
-                  <p>{event.files.join(', ') || 'No posts recorded'}</p>
-                  {event.errorSummary ? <p>{event.errorSummary}</p> : null}
-                </div>
-                <div className={styles.eventMeta}>
-                  <StatusBadge status={event.status === 'success' ? 'synced' : 'error'}>
-                    {event.status === 'success' ? 'Live' : event.errorCode || 'Failed'}
-                  </StatusBadge>
-                  <span>{formatEventDate(event.createdAt)}</span>
-                  {event.commitSha ? <code>{event.commitSha.slice(0, 7)}</code> : null}
-                </div>
-              </article>
-            ))}
-          </div>
         ) : (
-          <p className={styles.emptyText}>Publish a ready post to see history here.</p>
+          <p className={styles.emptyText}>No posts in this stage.</p>
         )}
       </section>
     </div>
   );
-}
-
-function DashboardCard({
-  title,
-  status,
-  description,
-  href,
-}: {
-  title: string;
-  status: string;
-  description: string;
-  href?: string;
-}) {
-  const content = (
-    <>
-      <div className={styles.cardHeader}>
-        <h2>{title}</h2>
-        <StatusBadge status="draft">{status}</StatusBadge>
-      </div>
-      <p>{description}</p>
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className={styles.cardLink}>
-        <Card interactive>{content}</Card>
-      </Link>
-    );
-  }
-
-  return <Card>{content}</Card>;
-}
-
-function formatEventDate(value: number) {
-  return new Intl.DateTimeFormat('en', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(value * 1000);
 }
