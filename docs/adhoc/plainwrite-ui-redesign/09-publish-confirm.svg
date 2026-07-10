@@ -1,0 +1,26 @@
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}</style>
+  <rect width="700" height="400" fill="#eceae5" rx="12"/>
+  <rect x="140" y="28" width="420" height="344" class="card" rx="12"/>
+
+  <text x="164" y="62" font-size="16" font-weight="600" class="t">Put 2 posts on your site</text>
+  <text x="164" y="84" font-size="12" class="ts">They'll be visible to anyone who visits your site.</text>
+
+  <rect x="164" y="100" width="372" height="72" rx="8" fill="none" stroke="#dddbd3"/>
+  <text x="180" y="124" font-size="12" class="t">▤ Spring release notes</text>
+  <text x="520" y="124" font-size="10.5" text-anchor="end" class="tm">new</text>
+  <line x1="164" y1="136" x2="536" y2="136" stroke="#dddbd3"/>
+  <text x="180" y="160" font-size="12" class="t">▤ Meet the team</text>
+  <text x="520" y="160" font-size="10.5" text-anchor="end" class="tm">updated</text>
+
+  <rect x="164" y="186" width="372" height="96" rx="8" fill="#faeeda"/>
+  <text x="180" y="210" font-size="12" font-weight="600" fill="#854f0b">1 post is held back</text>
+  <text x="180" y="230" font-size="11" fill="#854f0b">"How we write docs" changed on your site since you started</text>
+  <text x="180" y="246" font-size="11" fill="#854f0b">editing. Review the newer version before publishing yours.</text>
+  <text x="180" y="270" font-size="11" fill="#854f0b" text-decoration="underline">Review changes</text>
+
+  <rect x="330" y="310" width="70" height="32" rx="8" fill="none" stroke="#c5c3bb"/>
+  <text x="365" y="330" font-size="12" text-anchor="middle" class="ts">Cancel</text>
+  <rect x="408" y="310" width="128" height="32" rx="8" fill="#2c2c2a"/>
+  <text x="472" y="330" font-size="12" font-weight="600" text-anchor="middle" class="tw">Publish 2 posts</text>
+</svg>

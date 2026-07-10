@@ -174,7 +174,7 @@ describe('publishAllCommittedDrafts — bookkeeping failure after a successful c
     const { publishAllCommittedDrafts } = await import('../actions');
     const formData = new FormData();
 
-    await expect(publishAllCommittedDrafts('project-1', formData)).resolves.toBeUndefined();
+    await expect(publishAllCommittedDrafts('project-1', null, formData)).resolves.toEqual({ ok: true });
 
     expect(publishFiles).toHaveBeenCalledOnce();
     expect(updatedDraftIds).toEqual(['draft-1']);
@@ -190,7 +190,7 @@ describe('publishAllCommittedDrafts — bookkeeping failure after a successful c
     const { publishAllCommittedDrafts } = await import('../actions');
     const formData = new FormData();
 
-    await publishAllCommittedDrafts('project-1', formData);
+    await publishAllCommittedDrafts('project-1', null, formData);
 
     expect(updatedDraftIds).toEqual(['draft-1', 'draft-2']);
     expect(insertedPublishEvents).toHaveLength(1);

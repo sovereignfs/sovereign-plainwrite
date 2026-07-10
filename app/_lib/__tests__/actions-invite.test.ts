@@ -25,6 +25,18 @@ let membershipRow: { role: string } | null = { role: 'owner' };
 let existingInvitedMemberRow: Record<string, unknown> | null = null;
 let projectMemberLimitCalls = 0;
 const insertedMembers: Array<Record<string, unknown>> = [];
+const projectRow = {
+  id: 'project-1',
+  tenantId: 'tenant-1',
+  repoOwner: 'octo',
+  repoName: 'docs',
+  provider: 'github',
+  branch: 'main',
+  pathPrefix: 'src/content',
+  ssgType: 'astro',
+  isPrivate: false,
+  name: 'Docs',
+};
 
 const fakeDb = {
   select() {
@@ -36,6 +48,7 @@ const fakeDb = {
             return this;
           },
           limit: async () => {
+            if (tableName === 'plainwrite_projects') return [projectRow];
             if (tableName !== 'plainwrite_project_members') return [];
             projectMemberLimitCalls += 1;
             if (projectMemberLimitCalls === 1) return membershipRow ? [membershipRow] : [];
@@ -78,9 +91,9 @@ describe('inviteProjectMember — directory validation', () => {
     formData.set('userId', 'typo-d-user-id');
     formData.set('role', 'editor');
 
-    await expect(inviteProjectMember('project-1', formData)).rejects.toThrow(
-      'No active user found with that ID.',
-    );
+    const result = await inviteProjectMember('project-1', null, formData);
+
+    expect(result).toEqual({ ok: false, error: 'That user could not be found.' });
     expect(insertedMembers).toHaveLength(0);
   });
 
@@ -91,8 +104,9 @@ describe('inviteProjectMember — directory validation', () => {
     formData.set('userId', 'user-2');
     formData.set('role', 'editor');
 
-    await inviteProjectMember('project-1', formData);
+    const result = await inviteProjectMember('project-1', null, formData);
 
+    expect(result.ok).toBe(true);
     expect(insertedMembers).toHaveLength(1);
     expect(insertedMembers[0]?.userId).toBe('user-2');
     expect(resolveUsers).toHaveBeenCalledWith({ ids: ['user-2'] });

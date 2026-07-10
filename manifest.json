@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "fs.sovereign.plainwrite",
   "name": "Plainwrite",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "A git-backed content editor for static site generators.",
   "type": "sovereign",
   "runtime": "native",
@@ -10,7 +10,34 @@
   "shell": "default",
   "icon": "icon.svg",
   "database": "shared",
-  "permissions": ["auth:session", "db:readWrite"],
+  "permissions": [
+    "auth:session",
+    "db:readWrite",
+    "notifications:send",
+    "data:provide",
+    "data:export",
+    "data:import",
+    "activity:write"
+  ],
+  "data": {
+    "provides": [
+      {
+        "contract": "plainwrite.projects",
+        "version": 1,
+        "description": "Plainwrite projects visible to the current user."
+      },
+      {
+        "contract": "plainwrite.content-index",
+        "version": 1,
+        "description": "File metadata for projects the current user can access, where the project's metadata visibility setting permits exposure."
+      },
+      {
+        "contract": "plainwrite.drafts",
+        "version": 1,
+        "description": "Draft metadata for the current user; full draft content is never exposed by this contract."
+      }
+    ]
+  },
   "connections": {
     "providers": [
       {

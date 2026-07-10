@@ -1,0 +1,39 @@
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}</style>
+  <rect width="700" height="400" fill="#f4f3ee" rx="12"/>
+  <rect x="20" y="20" width="660" height="360" class="card" rx="12"/>
+
+  <text x="40" y="52" font-size="15" font-weight="600" class="t">This post changed on your site while you were editing</text>
+  <text x="40" y="74" font-size="12" class="ts">"How we write docs" — updated on the site 2 hours ago. Compare before publishing yours.</text>
+  <line x1="20" y1="90" x2="680" y2="90" stroke="#dddbd3"/>
+  <line x1="350" y1="90" x2="350" y2="322" stroke="#dddbd3"/>
+
+  <text x="44" y="116" font-size="11.5" font-weight="600" class="ts">Version on your site</text>
+  <text x="164" y="116" font-size="11" class="tm">· newer</text>
+  <text x="44" y="144" font-size="12" class="t">We keep our docs close to the code so</text>
+  <text x="44" y="160" font-size="12" class="t">they never drift.</text>
+  <rect x="38" y="174" width="292" height="56" rx="4" fill="#e1f5ee"/>
+  <text x="44" y="194" font-size="12" fill="#085041">Every page gets reviewed twice before</text>
+  <text x="44" y="210" font-size="12" fill="#085041">it ships — once for accuracy, once for</text>
+  <text x="44" y="226" font-size="12" fill="#085041">tone.</text>
+  <text x="44" y="254" font-size="12" class="t">Short pages beat long ones.</text>
+
+  <text x="372" y="116" font-size="11.5" font-weight="600" class="ts">Your version</text>
+  <text x="446" y="116" font-size="11" class="tm">· draft</text>
+  <text x="372" y="144" font-size="12" class="t">We keep our docs close to the code so</text>
+  <text x="372" y="160" font-size="12" class="t">they never drift.</text>
+  <rect x="366" y="174" width="292" height="40" rx="4" fill="#faeeda"/>
+  <text x="372" y="194" font-size="12" fill="#633806">Every page gets one careful review</text>
+  <text x="372" y="210" font-size="12" fill="#633806">before it ships.</text>
+  <text x="372" y="240" font-size="12" class="t">Short pages beat long ones.</text>
+
+  <line x1="20" y1="322" x2="680" y2="322" stroke="#dddbd3"/>
+  <rect x="20" y="322" width="660" height="58" fill="#faf9f6"/>
+  <text x="40" y="356" font-size="11" class="tm">1 paragraph differs</text>
+  <rect x="284" y="336" width="132" height="30" rx="8" fill="none" stroke="#c5c3bb"/>
+  <text x="350" y="355" font-size="11.5" text-anchor="middle" class="ts">Use the site's version</text>
+  <rect x="424" y="336" width="112" height="30" rx="8" fill="none" stroke="#c5c3bb"/>
+  <text x="480" y="355" font-size="11.5" text-anchor="middle" class="ts">Keep editing mine</text>
+  <rect x="544" y="336" width="116" height="30" rx="8" fill="#2c2c2a"/>
+  <text x="602" y="355" font-size="11.5" font-weight="600" text-anchor="middle" class="tw">Publish mine anyway</text>
+</svg>

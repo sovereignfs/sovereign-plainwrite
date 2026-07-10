@@ -29,6 +29,55 @@
   color: var(--sv-color-error-text);
 }
 
+.feedbackError {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  padding: var(--sv-space-2) var(--sv-space-3);
+  border-radius: var(--sv-radius-md);
+  border: 1px solid var(--sv-color-error-border);
+  background-color: var(--sv-color-error-surface);
+  color: var(--sv-color-error-text);
+}
+
+.memberPicker {
+  position: relative;
+}
+
+.memberResults {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + var(--sv-space-1));
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: var(--sv-space-1);
+  list-style: none;
+  display: grid;
+  gap: var(--sv-space-1);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-raised);
+  box-shadow: var(--sv-shadow-card);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.memberResults button {
+  width: 100%;
+  text-align: left;
+  padding: var(--sv-space-2);
+  border: none;
+  border-radius: var(--sv-radius-sm);
+  background: transparent;
+  color: var(--sv-color-text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.memberResults button:hover {
+  background: var(--sv-color-surface-sunken);
+}
+
 .panelHeader,
 .member,
 .actions {

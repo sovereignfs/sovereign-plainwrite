@@ -1,0 +1,41 @@
+<svg viewBox="0 0 700 440" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}.serif{font-family:Georgia,serif}</style>
+  <rect width="700" height="440" fill="#f4f3ee" rx="12"/>
+  <rect x="20" y="20" width="660" height="400" class="card" rx="12"/>
+
+  <text x="40" y="48" font-size="14" class="ts">←</text>
+  <text x="62" y="48" font-size="11.5" class="tm">Saved just now</text>
+  <rect x="252" y="32" width="196" height="24" rx="8" fill="none" stroke="#dddbd3"/>
+  <rect x="386" y="32" width="62" height="24" rx="8" fill="#efede7"/>
+  <text x="283" y="48" font-size="11" text-anchor="middle" class="ts">Write</text>
+  <text x="349" y="48" font-size="11" text-anchor="middle" class="ts">Markdown</text>
+  <text x="417" y="48" font-size="11" font-weight="600" text-anchor="middle" class="t">Preview</text>
+  <rect x="500" y="33" width="46" height="22" rx="11" fill="none" stroke="#dddbd3"/>
+  <text x="523" y="48" font-size="10.5" text-anchor="middle" class="ts">Draft</text>
+  <rect x="554" y="30" width="106" height="28" rx="8" fill="#2c2c2a"/>
+  <text x="607" y="48" font-size="11.5" font-weight="600" text-anchor="middle" class="tw">Ready to publish</text>
+  <line x1="20" y1="68" x2="680" y2="68" stroke="#dddbd3"/>
+
+  <rect x="20" y="68" width="660" height="34" fill="#faf9f6"/>
+  <text x="256" y="90" font-size="11" class="tm">Reading view</text>
+  <rect x="332" y="74" width="24" height="22" rx="6" fill="#ffffff" stroke="#dddbd3"/>
+  <text x="344" y="89" font-size="11" text-anchor="middle" class="ts">🖵</text>
+  <text x="368" y="89" font-size="11" class="tm">▯</text>
+  <text x="392" y="90" font-size="11" class="tm">2 min read · 340 words</text>
+  <line x1="20" y1="102" x2="680" y2="102" stroke="#dddbd3"/>
+
+  <rect x="20" y="102" width="660" height="318" fill="#f4f3ee"/>
+  <rect x="140" y="122" width="420" height="256" class="card" rx="8"/>
+  <text x="168" y="150" font-size="10.5" class="tm">Blog · April 12, 2026</text>
+  <text x="168" y="180" font-size="20" font-weight="600" class="serif t">Why we moved to a static site</text>
+  <text x="168" y="208" font-size="12.5" class="serif t">Last spring our old CMS finally gave out. We wanted</text>
+  <text x="168" y="226" font-size="12.5" class="serif t">something fast, something we could own outright, and</text>
+  <text x="168" y="244" font-size="12.5" class="serif t">something that wouldn't wake anyone up at night.</text>
+  <text x="180" y="270" font-size="12.5" class="serif t">•  Pages load in under a second</text>
+  <text x="180" y="288" font-size="12.5" class="serif t">•  No database to babysit</text>
+  <rect x="168" y="302" width="364" height="44" rx="8" fill="#efede7"/>
+  <text x="350" y="329" font-size="13" text-anchor="middle" class="tm">▣</text>
+  <text x="168" y="366" font-size="12.5" class="serif t">The move took a weekend. Here's how it went…</text>
+
+  <text x="350" y="402" font-size="10.5" text-anchor="middle" class="tm">Preview shows your content with simple styles — the live site applies its own design.</text>
+</svg>

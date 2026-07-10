@@ -519,33 +519,67 @@ Verification:
   exchange failure, and refresh failure.
 - Run typecheck and tests.
 
-### PLW-010 Add Data Contracts, Portability, Activity, And Notifications
+### ✅ PLW-010 Add Data Contracts, Portability, Activity, And Notifications
 
 **Spec refs:** Current platform refresh, SDK dependencies, Data contracts,
 Portability and deletion.
 
+**Status:** ✅ Complete.
+
 Expose platform integrations after the core project workflow exists.
 
-Implementation requirements:
+Progress as of 2026-07-10:
 
-- Restore `notifications:send`, `data:provide`, `data:export`, `data:import`,
-  and `activity:write` to `manifest.json` `permissions`, and the
-  `plainwrite.projects`/`plainwrite.content-index`/`plainwrite.drafts`
-  `data.provides` entries (trimmed pending this task — see SPEC.md's manifest
-  section).
-- Implement read-only data contracts:
-  - `plainwrite.projects` v1.
-  - `plainwrite.content-index` v1.
-  - `plainwrite.drafts` v1 metadata only.
-- Enforce consent and project visibility rules for data contract reads.
-- Implement export/import/delete participation for projects, memberships, file
-  cache metadata, draft content, schema settings, and publish history.
-- Exclude credentials from export; include credential metadata only when useful
-  for reconnect prompts.
-- Implement user deletion behavior: delete user credentials and drafts, remove or
-  transfer owned projects, preserve remote git history.
-- Emit notifications for share and publish events.
-- Emit activity records for project and publish events.
+- [x] Restored `notifications:send`, `data:provide`, `data:export`,
+  `data:import`, and `activity:write` to `manifest.json` `permissions`, and
+  the `plainwrite.projects`/`plainwrite.content-index`/`plainwrite.drafts`
+  `data.provides` entries.
+- [x] Implemented the three read-only data contracts in
+  `app/_lib/data-contracts.ts`, registered via `sdk.data.provide()` from
+  `app/layout.tsx` (in-process registry — see the file's own docblock for the
+  re-register-per-request caveat).
+  - `plainwrite.projects` v1 — non-archived projects the current user is a
+    member of, with their role.
+  - `plainwrite.content-index` v1 — file metadata (path/collection/filename/
+    lastSyncedAt) for projects the user can access, filtered by the same
+    private-project visibility rule the UI uses
+    (`!isPrivate || metadataVisibility === 'all_members'`; a resolver has no
+    per-request GitHub credential to fall back on the way the UI does).
+    **No body snippets** — `plainwrite_file_cache` has never cached file
+    bodies, only metadata, so "searchable snippets" from SPEC.md's original
+    description are deferred until content caching exists.
+  - `plainwrite.drafts` v1 — metadata only (no `content` field), per SPEC.md.
+- [x] Implemented export/import/delete participation in
+  `app/_lib/portability.ts`, registered via `sdk.portability.provideExport/
+  provideImport/provideDelete()` from `app/layout.tsx`.
+  - Export: the user's **owned** projects (full settings) plus their schemas,
+    file cache metadata, and publish history; the user's own **drafts across
+    every project they're a member of** (owned or not — drafts are personal
+    work); credential **metadata only** (provider/authType/providerLogin,
+    never `secretRef`) as an informational reconnect checklist.
+  - Import: additive, remaps project ids via `ctx.remapId`; a draft whose
+    project wasn't in the export (i.e. the exporting user was a member, not
+    owner) has nothing to attach to and is skipped. Credentials are never
+    restored — the user must reconnect, per SPEC.md.
+  - Delete: revokes and deletes the user's vault-backed credentials and
+    drafts; for each project membership, removes it if another owner exists,
+    **transfers ownership to the longest-tenured other member** if the user
+    was the sole owner but other members remain, or **hard-deletes the whole
+    project** if the user was its only member. Remote git history is
+    untouched (lives outside Sovereign).
+- [x] Added `notifyUser`/`recordActivity` helpers in
+  `app/_lib/platform-events.ts` (best-effort — a notification/activity
+  failure never blocks the action that triggered it).
+  - Notifications: on being added to a project (`inviteProjectMember`), and
+    to every other project member (never the publisher) on a successful
+    publish (`publishCommittedDraft`, `publishAllCommittedDrafts`).
+  - Activity records: project created/archived/restored/deleted, member
+    invited/removed, and publish events (both single-file and publish-all).
+- [x] Added tests: `data-contracts.test.ts` (per-contract filtering,
+  including the private-project visibility rule and draft-content
+  exclusion), `portability.test.ts` (export shape, additive import with id
+  remapping and orphaned-draft skipping, and all three delete branches —
+  non-owner removal, ownership transfer, sole-member hard-delete).
 
 Acceptance criteria:
 
@@ -556,8 +590,7 @@ Acceptance criteria:
 
 Verification:
 
-- Add tests for data contract filtering, export/import, and user deletion.
-- Run typecheck and tests.
+- `pnpm typecheck` and `pnpm test` (16 files / 87 tests in the plugin) pass.
 
 ## v0.2 Rich Text, Jekyll, Images
 

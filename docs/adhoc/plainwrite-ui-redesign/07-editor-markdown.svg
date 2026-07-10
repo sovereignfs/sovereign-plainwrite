@@ -1,0 +1,44 @@
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}.ph{fill:#efede7}.mono{font-family:ui-monospace,monospace}</style>
+  <rect width="700" height="400" fill="#f4f3ee" rx="12"/>
+  <rect x="20" y="20" width="660" height="360" class="card" rx="12"/>
+
+  <text x="40" y="48" font-size="14" class="ts">←</text>
+  <text x="62" y="48" font-size="11.5" class="tm">Saved just now</text>
+  <rect x="252" y="32" width="196" height="24" rx="8" fill="none" stroke="#dddbd3"/>
+  <rect x="314" y="32" width="70" height="24" fill="#efede7"/>
+  <text x="283" y="48" font-size="11" text-anchor="middle" class="ts">Write</text>
+  <text x="349" y="48" font-size="11" font-weight="600" text-anchor="middle" class="t">Markdown</text>
+  <text x="418" y="48" font-size="11" text-anchor="middle" class="ts">Preview</text>
+  <rect x="500" y="33" width="46" height="22" rx="11" fill="none" stroke="#dddbd3"/>
+  <text x="523" y="48" font-size="10.5" text-anchor="middle" class="ts">Draft</text>
+  <rect x="554" y="30" width="106" height="28" rx="8" fill="#2c2c2a"/>
+  <text x="607" y="48" font-size="11.5" font-weight="600" text-anchor="middle" class="tw">Ready to publish</text>
+  <line x1="20" y1="68" x2="680" y2="68" stroke="#dddbd3"/>
+  <line x1="480" y1="68" x2="480" y2="380" stroke="#dddbd3"/>
+
+  <text x="48" y="100" font-size="12" class="mono tm"># Why we moved to a static site</text>
+  <text x="48" y="130" font-size="12" class="mono t">Last spring our old CMS finally gave out.</text>
+  <text x="48" y="148" font-size="12" class="mono t">We wanted something *fast*, something we</text>
+  <text x="48" y="166" font-size="12" class="mono t">could **own outright**, and something that</text>
+  <text x="48" y="184" font-size="12" class="mono t">wouldn't wake anyone up at night.</text>
+  <text x="48" y="214" font-size="12" class="mono t">- Pages load in under a second</text>
+  <text x="48" y="232" font-size="12" class="mono t">- No database to babysit</text>
+  <text x="48" y="262" font-size="12" class="mono tm">![Our team](./team-photo.jpg)</text>
+  <text x="48" y="292" font-size="12" class="mono t">The move took a weekend. Here's how…</text>
+
+  <rect x="20" y="330" width="460" height="50" fill="#faf9f6"/>
+  <line x1="20" y1="330" x2="480" y2="330" stroke="#dddbd3"/>
+  <text x="40" y="359" font-size="10.5" class="mono tm"># heading&#160;&#160;**bold**&#160;&#160;*italic*&#160;&#160;- list</text>
+  <text x="462" y="359" font-size="10.5" text-anchor="end" fill="#185fa5">Markdown guide</text>
+
+  <text x="500" y="96" font-size="11.5" font-weight="600" class="ts">Post details</text>
+  <text x="500" y="120" font-size="10" class="tm">Publish date</text>
+  <rect x="500" y="128" width="160" height="26" rx="8" class="ph" stroke="#dddbd3"/>
+  <text x="500" y="176" font-size="10" class="tm">Tags</text>
+  <rect x="500" y="184" width="160" height="26" rx="8" class="ph" stroke="#dddbd3"/>
+  <text x="500" y="232" font-size="10" class="tm">Description</text>
+  <rect x="500" y="240" width="160" height="44" rx="8" class="ph" stroke="#dddbd3"/>
+  <line x1="500" y1="304" x2="660" y2="304" stroke="#dddbd3"/>
+  <text x="500" y="326" font-size="11" class="tm">› Advanced</text>
+</svg>

@@ -95,9 +95,9 @@ describe('content path scoping', () => {
   it('publishCommittedDraft rejects a path outside the project content prefix', async () => {
     const { publishCommittedDraft } = await import('../actions');
 
-    await expect(publishCommittedDraft('project-1', '.github/workflows/deploy.yml')).rejects.toThrow(
-      "File path is outside this project's configured content path.",
-    );
+    await expect(
+      publishCommittedDraft('project-1', '.github/workflows/deploy.yml', null, new FormData()),
+    ).rejects.toThrow("File path is outside this project's configured content path.");
   });
 
   it('allows a path inside the project content prefix through to the next check', async () => {

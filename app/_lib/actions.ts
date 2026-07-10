@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { sdk } from '@sovereignfs/sdk';
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import {
   plainwriteCollectionSchemas,
@@ -25,6 +25,7 @@ import { defaultMarkdownTemplate, type ContentFile } from './content-rules';
 import { buildContentFilePath } from './editor-rules';
 import { getGitProvider, GitProviderError, type GitPublishResult } from './git-providers';
 import { buildGitHubOAuthUrl, exchangeGitHubOAuthCode } from './oauth-rules';
+import { notifyUser, recordActivity } from './platform-events';
 import {
   assertProjectRole,
   isProjectRole,
@@ -152,6 +153,20 @@ interface ProjectContext {
   userId: string;
   tenantId: string;
 }
+
+/**
+ * Result shape for form actions driven by `useActionState` on the client
+ * (sync, publish, invite). These surface expected failures — bad branch, no
+ * connected credential, a real publish conflict, an unresolvable invite —
+ * as inline UI state instead of a thrown Error, which would otherwise
+ * propagate through the form's action transition to the nearest error
+ * boundary and replace the whole page. Actions that are only reachable
+ * through UI already gated by role/authorization checks (e.g.
+ * `requireProjectRole` failures from a tampered request) still throw —
+ * those aren't user-recoverable inline and the plugin's `error.tsx`
+ * boundary is the right place for them.
+ */
+export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
 function now() {
   return Math.floor(Date.now() / 1000);
@@ -417,12 +432,58 @@ export async function listCollectionSchemas(projectId: string): Promise<Collecti
   }));
 }
 
+/**
+ * Synthesizes a ContentFileSummary for a draft that has no corresponding
+ * `plainwriteFileCache` row — either because the whole file tree can't be
+ * synced (no credential on a private repo) or because the draft is a
+ * brand-new file created locally that was never published, so it can never
+ * appear in a GitHub-tree sync until it is. Without this, "New content
+ * file" + "Save draft" produces a draft the user can never find again on
+ * the dashboard.
+ */
+function draftToLocalOnlyFileSummary(
+  draft: PlainwriteDraft,
+  adapter: ReturnType<typeof getSsgAdapter>,
+  project: PlainwriteProject,
+): ContentFileSummary {
+  return {
+    path: draft.filePath,
+    collection: adapter.inferCollection(draft.filePath, project.pathPrefix),
+    filename: draft.filePath.split('/').at(-1) ?? draft.filePath,
+    sha: draft.baseSha ?? '',
+    lastSyncedAt: draft.updatedAt,
+    status: normalizeDraftStatus(draft.status),
+  };
+}
+
 export async function listContentFiles(projectId: string): Promise<ContentFileListResult> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
   const project = await getProjectRow(db, tenantId, projectId);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
-  if (!canViewCachedMetadata(project, credential.token)) return { files: [], syncError: null };
+  if (!canViewCachedMetadata(project, credential.token)) {
+    // Repo metadata (the synced file tree) isn't visible without a
+    // credential, but the user's own drafts never touched GitHub to be
+    // created — they're local DB rows. Surface those so "Save draft" work
+    // isn't invisible just because the file-tree listing is gated.
+    const drafts = await db
+      .select()
+      .from(plainwriteDrafts)
+      .where(
+        and(
+          eq(plainwriteDrafts.tenantId, tenantId),
+          eq(plainwriteDrafts.projectId, projectId),
+          eq(plainwriteDrafts.userId, userId),
+          isNotNull(plainwriteDrafts.content),
+        ),
+      );
+    const adapter = getSsgAdapter(project.ssgType);
+    return {
+      files: drafts.map((draft) => draftToLocalOnlyFileSummary(draft, adapter, project)),
+      syncError:
+        'Connect a GitHub token to see the full repository file list. Showing your local drafts only.',
+    };
+  }
 
   let files = await db
     .select()
@@ -468,34 +529,57 @@ export async function listContentFiles(projectId: string): Promise<ContentFileLi
     );
 
   const draftByPath = new Map(drafts.map((draft) => [draft.filePath, draft]));
+  const cachedPaths = new Set(files.map((file) => file.path));
+  // A draft for a file that was never synced from GitHub (created locally
+  // via "New content file" and not yet published) has no file-cache row —
+  // without this, it would never appear here at all, on any project,
+  // regardless of credentials. Pending-deletes never apply here: staging a
+  // deletion requires an existing baseSha, which only exists for files
+  // that were already synced.
+  const localOnlyDrafts = drafts.filter(
+    (draft) => !cachedPaths.has(draft.filePath) && draft.content !== null,
+  );
+  const adapter = getSsgAdapter(project.ssgType);
 
   return {
-    files: files.map((file) => {
-      const draft = draftByPath.get(file.path);
-      return {
-        path: file.path,
-        collection: file.collection,
-        filename: file.filename,
-        sha: file.sha,
-        lastSyncedAt: file.lastSyncedAt,
-        status: draft?.content === null ? 'pending-delete' : normalizeDraftStatus(draft?.status),
-      };
-    }),
+    files: [
+      ...files.map((file) => {
+        const draft = draftByPath.get(file.path);
+        return {
+          path: file.path,
+          collection: file.collection,
+          filename: file.filename,
+          sha: file.sha,
+          lastSyncedAt: file.lastSyncedAt,
+          status: draft?.content === null ? 'pending-delete' : normalizeDraftStatus(draft?.status),
+        } satisfies ContentFileSummary;
+      }),
+      ...localOnlyDrafts.map((draft) => draftToLocalOnlyFileSummary(draft, adapter, project)),
+    ],
     syncError,
   };
 }
 
-export async function syncProjectContent(projectId: string) {
+export async function syncProjectContent(
+  projectId: string,
+  _prevState: ActionResult | null,
+  _formData: FormData,
+): Promise<ActionResult> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'editor');
   const project = await getProjectRow(db, tenantId, projectId);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
   if (project.isPrivate && !credential.token) {
-    throw new Error('Connect a GitHub token before syncing a private repository.');
+    return { ok: false, error: 'Connect a GitHub token before syncing a private repository.' };
   }
-  await refreshProjectContentCache(db, tenantId, project, credential.token);
+  try {
+    await refreshProjectContentCache(db, tenantId, project, credential.token);
+  } catch (error) {
+    return { ok: false, error: sanitizePublishError(error) };
+  }
 
   revalidateProject(projectId);
+  return { ok: true };
 }
 
 export async function getEditorState(projectId: string, path: string): Promise<EditorState> {
@@ -633,19 +717,24 @@ export async function createContentFile(projectId: string, formData: FormData) {
   redirect(`/plainwrite/${projectId}/editor/${path}`);
 }
 
-export async function publishCommittedDraft(projectId: string, path: string) {
+export async function publishCommittedDraft(
+  projectId: string,
+  path: string,
+  _prevState: ActionResult | null,
+  _formData: FormData,
+): Promise<ActionResult> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'editor');
   const project = await getProjectRow(db, tenantId, projectId);
   assertContentPathAllowed(project, path);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
   if (!credential.token) {
-    throw new Error('Connect a GitHub token before publishing.');
+    return { ok: false, error: 'Connect a GitHub token before publishing.' };
   }
 
   const draft = await getCurrentUserDraft(db, tenantId, projectId, path, userId);
   if (!draft || draft.status !== 'committed') {
-    throw new Error('Commit this draft before publishing.');
+    return { ok: false, error: 'Commit this draft before publishing.' };
   }
 
   const message = draft.commitMessage || `Update ${path.split('/').at(-1) ?? path}`;
@@ -697,7 +786,9 @@ export async function publishCommittedDraft(projectId: string, path: string) {
       errorCode: null,
       errorSummary: null,
     });
+    await notifyAndLogPublish(db, tenantId, project, userId, [path], result.commitSha);
     revalidateEditor(projectId, path);
+    return { ok: true };
   } catch (error) {
     const failure = classifyPublishFailure(error);
     await insertPublishEvent(db, {
@@ -714,17 +805,21 @@ export async function publishCommittedDraft(projectId: string, path: string) {
       errorSummary: failure.summary,
     });
     revalidateEditor(projectId, path);
-    throw new Error(failure.summary);
+    return { ok: false, error: failure.summary };
   }
 }
 
-export async function publishAllCommittedDrafts(projectId: string, formData: FormData) {
+export async function publishAllCommittedDrafts(
+  projectId: string,
+  _prevState: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'editor');
   const project = await getProjectRow(db, tenantId, projectId);
   const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
   if (!credential.token) {
-    throw new Error('Connect a GitHub token before publishing.');
+    return { ok: false, error: 'Connect a GitHub token before publishing.' };
   }
 
   const skipConflicts = formBoolean(formData, 'skipConflicts');
@@ -740,7 +835,9 @@ export async function publishAllCommittedDrafts(projectId: string, formData: For
       ),
     )
     .orderBy(asc(plainwriteDrafts.filePath));
-  if (drafts.length === 0) throw new Error('Commit at least one draft before publishing all.');
+  if (drafts.length === 0) {
+    return { ok: false, error: 'Commit at least one draft before publishing all.' };
+  }
 
   const provider = getGitProvider(project.provider);
   const publishable: PlainwriteDraft[] = [];
@@ -769,9 +866,11 @@ export async function publishAllCommittedDrafts(projectId: string, formData: For
       errorCode: 'conflict',
       errorSummary: summary,
     });
-    throw new Error(summary);
+    return { ok: false, error: summary };
   }
-  if (publishable.length === 0) throw new Error('All committed drafts have conflicts.');
+  if (publishable.length === 0) {
+    return { ok: false, error: 'All committed drafts have conflicts.' };
+  }
 
   const message =
     formString(formData, 'message') ||
@@ -807,7 +906,7 @@ export async function publishAllCommittedDrafts(projectId: string, formData: For
       errorCode: failure.code,
       errorSummary: failure.summary,
     });
-    throw new Error(failure.summary);
+    return { ok: false, error: failure.summary };
   }
 
   // The GitHub commit above has already landed — from here on, a failure
@@ -868,8 +967,20 @@ export async function publishAllCommittedDrafts(projectId: string, formData: For
           : null,
     errorSummary: notes.length > 0 ? notes.join(' ') : null,
   });
+  await notifyAndLogPublish(
+    db,
+    tenantId,
+    project,
+    userId,
+    publishable.map((draft) => draft.filePath),
+    result.commitSha,
+  );
 
   revalidateProject(projectId);
+  return {
+    ok: true,
+    message: conflicts.length > 0 ? `Published, skipping conflicts: ${conflicts.join('; ')}` : undefined,
+  };
 }
 
 export async function stageContentDeletion(projectId: string, path: string) {
@@ -1236,6 +1347,13 @@ export async function createProject(formData: FormData) {
     joinedAt: ts,
   });
 
+  await recordActivity({
+    action: 'plainwrite.project.created',
+    targetType: 'project',
+    targetId: id,
+    summary: `Created project "${name}".`,
+  });
+
   revalidatePath('/plainwrite');
   redirect(`/plainwrite/${id}`);
 }
@@ -1272,20 +1390,34 @@ export async function updateProjectSettings(projectId: string, formData: FormDat
 export async function archiveProject(projectId: string) {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  const project = await getProjectRow(db, tenantId, projectId);
   await db
     .update(plainwriteProjects)
     .set({ archivedAt: now(), updatedAt: now() })
     .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)));
+  await recordActivity({
+    action: 'plainwrite.project.archived',
+    targetType: 'project',
+    targetId: projectId,
+    summary: `Archived project "${project.name}".`,
+  });
   revalidateProject(projectId);
 }
 
 export async function restoreProject(projectId: string) {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'owner');
+  const project = await getProjectRow(db, tenantId, projectId);
   await db
     .update(plainwriteProjects)
     .set({ archivedAt: null, updatedAt: now() })
     .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)));
+  await recordActivity({
+    action: 'plainwrite.project.restored',
+    targetType: 'project',
+    targetId: projectId,
+    summary: `Restored project "${project.name}".`,
+  });
   revalidateProject(projectId);
 }
 
@@ -1295,6 +1427,7 @@ export async function hardDeleteProject(projectId: string, formData: FormData) {
   if (formString(formData, 'confirm') !== 'DELETE') {
     throw new Error('Type DELETE to permanently delete the project.');
   }
+  const project = await getProjectRow(db, tenantId, projectId);
 
   const credentials = await db
     .select({ secretRef: plainwriteCredentials.secretRef })
@@ -1333,17 +1466,42 @@ export async function hardDeleteProject(projectId: string, formData: FormData) {
     .delete(plainwriteProjects)
     .where(and(eq(plainwriteProjects.tenantId, tenantId), eq(plainwriteProjects.id, projectId)));
 
+  await recordActivity({
+    action: 'plainwrite.project.deleted',
+    targetType: 'project',
+    targetId: projectId,
+    summary: `Permanently deleted project "${project.name}".`,
+  });
+
   revalidatePath('/plainwrite');
   redirect('/plainwrite');
 }
 
-export async function inviteProjectMember(projectId: string, formData: FormData) {
+/**
+ * Backs the member picker's typeahead — search the platform directory by
+ * name/email so invitedProjectMember never has to ask a human for a raw
+ * internal user id (nobody knows their own id). Viewer role is enough since
+ * this only reads display-safe directory fields, not project membership.
+ */
+export async function searchProjectDirectoryUsers(projectId: string, query: string) {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+  return sdk.directory.searchUsers({ query: trimmed, limit: 8 });
+}
+
+export async function inviteProjectMember(
+  projectId: string,
+  _prevState: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'owner');
   const invitedUserId = formString(formData, 'userId');
   const role = formString(formData, 'role');
-  if (!invitedUserId) throw new Error('User ID is required.');
-  if (!isProjectRole(role)) throw new Error('Invalid project role.');
+  if (!invitedUserId) return { ok: false, error: 'Choose a member to add.' };
+  if (!isProjectRole(role)) return { ok: false, error: 'Invalid project role.' };
 
   // Resolve against the platform directory before inserting a membership
   // row — otherwise a typo'd ID silently creates a phantom member that never
@@ -1351,7 +1509,7 @@ export async function inviteProjectMember(projectId: string, formData: FormData)
   // through the same resolveUsers call, so a phantom row would just render
   // blank forever instead of failing loudly at invite time).
   const [invitedUser] = await sdk.directory.resolveUsers({ ids: [invitedUserId] });
-  if (!invitedUser) throw new Error('No active user found with that ID.');
+  if (!invitedUser) return { ok: false, error: 'That user could not be found.' };
 
   const existing = await db
     .select()
@@ -1370,7 +1528,7 @@ export async function inviteProjectMember(projectId: string, formData: FormData)
     if (existingMember?.role === 'owner' && role !== 'owner') {
       const ownerCount = await countProjectOwners(db, tenantId, projectId);
       if (ownerCount <= 1) {
-        throw new Error('The last owner cannot be demoted.');
+        return { ok: false, error: 'The last owner cannot be demoted.' };
       }
     }
 
@@ -1393,9 +1551,25 @@ export async function inviteProjectMember(projectId: string, formData: FormData)
       invitedBy: userId,
       joinedAt: now(),
     });
+
+    const project = await getProjectRow(db, tenantId, projectId);
+    await notifyUser({
+      recipientUserId: invitedUserId,
+      title: 'Added to a Plainwrite project',
+      body: `You were added to "${project.name}" as ${role}.`,
+      url: `/plainwrite/${projectId}`,
+    });
+    await recordActivity({
+      action: 'plainwrite.project.member_invited',
+      subjectUserId: invitedUserId,
+      targetType: 'project',
+      targetId: projectId,
+      summary: `Invited a member to "${project.name}" as ${role}.`,
+    });
   }
 
   revalidateProject(projectId);
+  return { ok: true, message: `Added ${invitedUser.name ?? invitedUser.email} as ${role}.` };
 }
 
 export async function removeProjectMember(projectId: string, memberUserId: string) {
@@ -1427,6 +1601,18 @@ export async function removeProjectMember(projectId: string, memberUserId: strin
         eq(plainwriteProjectMembers.userId, memberUserId),
       ),
     );
+
+  const project = await getProjectRow(db, tenantId, projectId);
+  await recordActivity({
+    action: 'plainwrite.project.member_removed',
+    subjectUserId: memberUserId,
+    targetType: 'project',
+    targetId: projectId,
+    summary:
+      memberUserId === userId
+        ? `Left project "${project.name}".`
+        : `Removed a member from "${project.name}".`,
+  });
 
   revalidateProject(projectId);
 }
@@ -1583,37 +1769,40 @@ async function refreshProjectContentCache(
   const files = adapter.discoverContent(tree, project.pathPrefix);
   const ts = now();
 
-  // Delete-then-insert as one transaction so two concurrent syncs can't race
-  // into unique-index errors on plainwrite_file_cache, and a crash between
-  // the two statements can't leave the cache empty until the next TTL sync.
-  // Scoped to just these two local writes — inferMissingCollectionSchemas
-  // below does its own network I/O (provider.getFileContent per collection)
-  // and must not run inside a held DB transaction.
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(plainwriteFileCache)
-      .where(
-        and(
-          eq(plainwriteFileCache.tenantId, tenantId),
-          eq(plainwriteFileCache.projectId, project.id),
-        ),
-      );
+  // NOT wrapped in db.transaction(): the SDK's Db type is deliberately
+  // dialect-agnostic, but better-sqlite3's own transaction() wrapper
+  // synchronously rejects any async callback function ("Transaction
+  // function cannot return a promise") — drizzle's better-sqlite3 session
+  // passes the callback straight through to it unmodified, so an
+  // `await db.transaction(async (tx) => {...})` that type-checks fine
+  // throws at runtime on the SQLite path. There's no callback shape that's
+  // simultaneously valid for better-sqlite3 (sync only) and Postgres (async
+  // only) without branching on dialect, which the SDK's opaque Db type
+  // can't do. Falling back to plain sequential delete-then-insert: two
+  // concurrent syncs can in theory race into a unique-index error on
+  // plainwrite_file_cache, and a crash between the two statements can leave
+  // the cache empty until the next TTL sync — low impact and self-healing,
+  // matching the original code-review finding this was meant to harden.
+  await db
+    .delete(plainwriteFileCache)
+    .where(
+      and(eq(plainwriteFileCache.tenantId, tenantId), eq(plainwriteFileCache.projectId, project.id)),
+    );
 
-    if (files.length > 0) {
-      await tx.insert(plainwriteFileCache).values(
-        files.map((file) => ({
-          id: randomUUID(),
-          tenantId,
-          projectId: project.id,
-          path: file.path,
-          collection: file.collection,
-          filename: file.filename,
-          sha: file.sha,
-          lastSyncedAt: ts,
-        })),
-      );
-    }
-  });
+  if (files.length > 0) {
+    await db.insert(plainwriteFileCache).values(
+      files.map((file) => ({
+        id: randomUUID(),
+        tenantId,
+        projectId: project.id,
+        path: file.path,
+        collection: file.collection,
+        filename: file.filename,
+        sha: file.sha,
+        lastSyncedAt: ts,
+      })),
+    );
+  }
 
   await inferMissingCollectionSchemas(db, tenantId, project, token, files);
 }
@@ -1947,6 +2136,45 @@ async function insertPublishEvent(
     errorSummary: event.errorSummary,
     createdAt: now(),
   });
+}
+
+/** Records the project-level publish activity event, then notifies every
+ * other project member (never the publisher) that new content went out. */
+async function notifyAndLogPublish(
+  db: Db,
+  tenantId: string,
+  project: PlainwriteProject,
+  publisherId: string,
+  files: string[],
+  commitSha: string | null,
+) {
+  const summary = `Published ${files.length === 1 ? '1 file' : `${files.length} files`} to "${project.name}".`;
+  await recordActivity({
+    action: 'plainwrite.project.published',
+    targetType: 'project',
+    targetId: project.id,
+    summary,
+    metadata: { files, commitSha },
+  });
+
+  const members = await db
+    .select({ userId: plainwriteProjectMembers.userId })
+    .from(plainwriteProjectMembers)
+    .where(
+      and(eq(plainwriteProjectMembers.tenantId, tenantId), eq(plainwriteProjectMembers.projectId, project.id)),
+    );
+  await Promise.all(
+    members
+      .filter((member) => member.userId !== publisherId)
+      .map((member) =>
+        notifyUser({
+          recipientUserId: member.userId,
+          title: 'New content published',
+          body: summary,
+          url: `/plainwrite/${project.id}`,
+        }),
+      ),
+  );
 }
 
 function classifyPublishFailure(error: unknown) {

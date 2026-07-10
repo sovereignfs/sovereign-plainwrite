@@ -1,0 +1,42 @@
+<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}.ph{fill:#efede7}</style>
+  <rect width="700" height="360" fill="#f4f3ee" rx="12"/>
+  <rect x="20" y="20" width="660" height="320" class="card" rx="12"/>
+
+  <text x="40" y="52" font-size="16" font-weight="600" class="t">Your sites</text>
+  <text x="122" y="52" font-size="12" class="tm">3 connected</text>
+  <rect x="536" y="34" width="124" height="30" rx="8" fill="#2c2c2a"/>
+  <text x="598" y="53" font-size="12" font-weight="600" text-anchor="middle" class="tw">+ Connect a site</text>
+  <line x1="20" y1="78" x2="680" y2="78" stroke="#dddbd3"/>
+
+  <rect x="40" y="96" width="198" height="170" rx="12" fill="none" stroke="#dddbd3"/>
+  <text x="54" y="122" font-size="13" font-weight="600" class="t">Company blog</text>
+  <circle cx="222" cy="117" r="4" fill="#0f6e56"/>
+  <text x="54" y="141" font-size="11" class="tm">acme.com</text>
+  <text x="54" y="168" font-size="11" class="ts">2 writing · 1 ready · 12 live</text>
+  <line x1="54" y1="228" x2="224" y2="228" stroke="#dddbd3"/>
+  <text x="54" y="248" font-size="10" class="tm">Owner</text>
+  <text x="224" y="248" font-size="10" text-anchor="end" class="tm">Edited 5 min ago</text>
+
+  <rect x="252" y="96" width="198" height="170" rx="12" fill="none" stroke="#dddbd3"/>
+  <text x="266" y="122" font-size="13" font-weight="600" class="t">Docs site</text>
+  <circle cx="434" cy="117" r="4" fill="#ba7517"/>
+  <text x="266" y="141" font-size="11" class="tm">docs.acme.com</text>
+  <text x="266" y="168" font-size="11" fill="#854f0b">Publishing access expired —</text>
+  <text x="266" y="183" font-size="11" fill="#854f0b">reconnect</text>
+  <line x1="266" y1="228" x2="436" y2="228" stroke="#dddbd3"/>
+  <text x="266" y="248" font-size="10" class="tm">Owner</text>
+  <text x="436" y="248" font-size="10" text-anchor="end" class="tm">Edited yesterday</text>
+
+  <rect x="464" y="96" width="198" height="170" rx="12" fill="none" stroke="#dddbd3"/>
+  <text x="478" y="122" font-size="13" font-weight="600" class="t">Studio portfolio</text>
+  <circle cx="646" cy="117" r="4" fill="#0f6e56"/>
+  <text x="478" y="141" font-size="11" class="tm">studio.example</text>
+  <text x="478" y="168" font-size="11" class="ts">1 writing · 8 live</text>
+  <line x1="478" y1="228" x2="648" y2="228" stroke="#dddbd3"/>
+  <text x="478" y="248" font-size="10" class="tm">Writer</text>
+  <text x="648" y="248" font-size="10" text-anchor="end" class="tm">Edited 3 days ago</text>
+
+  <line x1="20" y1="296" x2="680" y2="296" stroke="#dddbd3"/>
+  <text x="40" y="322" font-size="12" class="tm">▤ 1 archived site</text>
+</svg>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import { Button, CodeTextarea, FormField, Input, SegmentedControl } from '@sovereignfs/ui';
+import type { ActionResult } from '../_lib/actions';
 import type { CollectionSchemaField } from '../_lib/schema-rules';
 import {
   parseMarkdownDocument,
@@ -25,7 +26,7 @@ interface MarkdownEditorProps {
   schemaFields: CollectionSchemaField[];
   saveAction: (formData: FormData) => void | Promise<void>;
   commitAction: (formData: FormData) => void | Promise<void>;
-  publishAction: (formData: FormData) => void | Promise<void>;
+  publishAction: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   discardAction: () => void | Promise<void>;
 }
 
@@ -61,6 +62,10 @@ export function MarkdownEditor({
     body: parsed.body,
   });
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('idle');
+  const [publishState, publishFormAction, publishPending] = useActionState<
+    ActionResult | null,
+    FormData
+  >(publishAction, null);
 
   const serializedContent = useMemo(
     () => serializeMarkdownDocument(frontmatterYaml, body),
@@ -229,17 +234,22 @@ export function MarkdownEditor({
               >
                 Mark ready
               </Button>
-              <form action={publishAction}>
+              <form action={publishFormAction}>
                 <Button
                   type="submit"
                   variant="secondary"
-                  disabled={status !== 'committed'}
+                  disabled={status !== 'committed' || publishPending}
                   className={styles.fullWidth}
                 >
-                  Publish
+                  {publishPending ? 'Publishing…' : 'Publish'}
                 </Button>
               </form>
             </div>
+          ) : null}
+          {publishState && !publishState.ok ? (
+            <p className={styles.feedbackError} role="status" aria-live="polite">
+              {publishState.error}
+            </p>
           ) : null}
         </section>
 

@@ -1,0 +1,43 @@
+<svg viewBox="0 0 700 440" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}.ph{fill:#efede7}</style>
+  <rect width="700" height="440" fill="#f4f3ee" rx="12"/>
+  <rect x="20" y="20" width="660" height="400" class="card" rx="12"/>
+
+  <text x="40" y="48" font-size="14" class="ts">←</text>
+  <text x="62" y="48" font-size="11.5" class="tm">Saved just now</text>
+  <rect x="252" y="32" width="196" height="24" rx="8" fill="none" stroke="#dddbd3"/>
+  <rect x="252" y="32" width="62" height="24" rx="8" fill="#efede7"/>
+  <text x="283" y="48" font-size="11" font-weight="600" text-anchor="middle" class="t">Write</text>
+  <text x="349" y="48" font-size="11" text-anchor="middle" class="ts">Markdown</text>
+  <text x="418" y="48" font-size="11" text-anchor="middle" class="ts">Preview</text>
+  <rect x="500" y="33" width="46" height="22" rx="11" fill="none" stroke="#dddbd3"/>
+  <text x="523" y="48" font-size="10.5" text-anchor="middle" class="ts">Draft</text>
+  <rect x="554" y="30" width="106" height="28" rx="8" fill="#2c2c2a"/>
+  <text x="607" y="48" font-size="11.5" font-weight="600" text-anchor="middle" class="tw">Ready to publish</text>
+  <line x1="20" y1="68" x2="680" y2="68" stroke="#dddbd3"/>
+
+  <text x="44" y="93" font-size="13" class="ts">B&#160;&#160;&#160;I&#160;&#160;&#160;H1&#160;&#160;H2&#160;&#160;&#160;• list&#160;&#160;&#160;1. list&#160;&#160;&#160;❝&#160;&#160;&#160;⌁ link&#160;&#160;&#160;▣ image&#160;&#160;&#160;‹/›</text>
+  <line x1="20" y1="104" x2="480" y2="104" stroke="#dddbd3"/>
+  <line x1="480" y1="68" x2="480" y2="420" stroke="#dddbd3"/>
+
+  <text x="48" y="142" font-size="19" font-weight="600" class="t">Why we moved to a static site</text>
+  <text x="48" y="172" font-size="12.5" class="t">Last spring our old CMS finally gave out. We wanted</text>
+  <text x="48" y="190" font-size="12.5" class="t">something fast, something we could own outright, and</text>
+  <text x="48" y="208" font-size="12.5" class="t">something that wouldn't wake anyone up at night.</text>
+  <text x="60" y="236" font-size="12.5" class="t">•  Pages load in under a second</text>
+  <text x="60" y="254" font-size="12.5" class="t">•  No database to babysit</text>
+  <rect x="48" y="272" width="404" height="64" rx="8" fill="none" stroke="#c5c3bb" stroke-dasharray="5 4"/>
+  <text x="250" y="308" font-size="11" text-anchor="middle" class="tm">▣ team-photo.jpg</text>
+  <text x="48" y="366" font-size="11" class="tm">Type / for headings, images, and more</text>
+
+  <text x="500" y="96" font-size="11.5" font-weight="600" class="ts">Post details</text>
+  <text x="500" y="120" font-size="10" class="tm">Publish date</text>
+  <rect x="500" y="128" width="160" height="26" rx="8" class="ph" stroke="#dddbd3"/>
+  <text x="500" y="176" font-size="10" class="tm">Tags</text>
+  <rect x="500" y="184" width="160" height="26" rx="8" class="ph" stroke="#dddbd3"/>
+  <text x="500" y="232" font-size="10" class="tm">Description</text>
+  <rect x="500" y="240" width="160" height="44" rx="8" class="ph" stroke="#dddbd3"/>
+  <line x1="500" y1="304" x2="660" y2="304" stroke="#dddbd3"/>
+  <text x="500" y="326" font-size="11" class="tm">› Advanced</text>
+  <text x="500" y="344" font-size="10" class="tm">Raw frontmatter · file path · change note</text>
+</svg>

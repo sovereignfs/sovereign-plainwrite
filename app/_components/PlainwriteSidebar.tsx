@@ -61,7 +61,6 @@ function ProjectNav({
 }) {
   const projectHref = `/plainwrite/${state.projectId}`;
   const settingsHref = `${projectHref}/settings`;
-  const editorHref = `${projectHref}/editor/src/content/example.md`;
 
   return (
     <div className={styles.projectNav}>
@@ -87,15 +86,6 @@ function ProjectNav({
         >
           Content
         </Link>
-        <Link
-          href={editorHref}
-          className={state.section === 'editor' ? styles.active : undefined}
-          aria-current={state.section === 'editor' ? 'page' : undefined}
-        >
-          Editor
-        </Link>
-        <span className={styles.disabled}>Drafts</span>
-        <span className={styles.disabled}>Publishing</span>
         <Link
           href={settingsHref}
           className={state.section === 'settings' ? styles.active : undefined}

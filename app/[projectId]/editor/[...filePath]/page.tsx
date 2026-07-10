@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { PageHeader, StatusBadge } from '@sovereignfs/ui';
+import { PageHeader } from '@sovereignfs/ui';
 import { MarkdownEditor } from '../../../_components/MarkdownEditor';
 import {
   commitDraft,
@@ -32,11 +32,6 @@ export default async function EditorPage({ params }: EditorPageProps) {
       <PageHeader
         title={path}
         description={`${editor.project.name} · ${repositoryLabel} · ${editor.project.branch}`}
-        action={
-          editor.loadError ? null : (
-            <StatusBadge status={editor.status}>{formatEditorStatus(editor.status)}</StatusBadge>
-          )
-        }
       />
 
       {editor.loadError ? (
@@ -79,10 +74,4 @@ export default async function EditorPage({ params }: EditorPageProps) {
       )}
     </div>
   );
-}
-
-function formatEditorStatus(status: string) {
-  if (status === 'unmodified') return 'Unmodified';
-  if (status === 'committed') return 'Ready to commit';
-  return 'Draft';
 }

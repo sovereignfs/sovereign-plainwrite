@@ -61,11 +61,14 @@ const fakeDb = {
     events.push(`insert:${getTableName(table)}`);
     return { values: async () => {} };
   },
-  transaction: vi.fn(async (callback: (tx: unknown) => Promise<void>) => {
-    events.push('transaction:start');
-    await callback(fakeDb);
-    events.push('transaction:end');
-  }),
+  // NOT exercised — see the "does not use db.transaction()" test below for
+  // why: better-sqlite3's native transaction() wrapper synchronously
+  // rejects any async callback, and drizzle's better-sqlite3 session passes
+  // the callback straight through to it unmodified. There's no callback
+  // shape that's valid for both better-sqlite3 (sync only) and Postgres
+  // (async only) without dialect-branching, which the SDK's opaque Db type
+  // can't do — so refreshProjectContentCache must never call this.
+  transaction: vi.fn(),
 };
 
 beforeEach(() => {
@@ -86,27 +89,23 @@ beforeEach(() => {
   };
 });
 
-describe('syncProjectContent — file cache refresh is transactional', () => {
-  it('wraps the delete-then-insert cache refresh in a single db.transaction()', async () => {
+describe('syncProjectContent — file cache refresh', () => {
+  it('does not use db.transaction() — better-sqlite3 rejects async transaction callbacks at runtime', async () => {
     const { syncProjectContent } = await import('../actions');
 
-    await syncProjectContent('project-1');
+    await syncProjectContent('project-1', null, new FormData());
 
-    expect(fakeDb.transaction).toHaveBeenCalledOnce();
-    // Both the delete and the insert must happen inside the transaction
-    // (between transaction:start and transaction:end), not before/after it —
-    // otherwise a concurrent sync or a crash between the two statements can
-    // leave plainwrite_file_cache empty or duplicated.
-    const startIndex = events.indexOf('transaction:start');
-    const endIndex = events.indexOf('transaction:end');
+    expect(fakeDb.transaction).not.toHaveBeenCalled();
+  });
+
+  it('deletes the stale cache before inserting the freshly synced rows', async () => {
+    const { syncProjectContent } = await import('../actions');
+
+    await syncProjectContent('project-1', null, new FormData());
+
     const deleteIndex = events.indexOf('delete:plainwrite_file_cache');
     const insertIndex = events.indexOf('insert:plainwrite_file_cache');
-
-    expect(startIndex).toBeGreaterThanOrEqual(0);
-    expect(endIndex).toBeGreaterThan(startIndex);
-    expect(deleteIndex).toBeGreaterThan(startIndex);
-    expect(deleteIndex).toBeLessThan(endIndex);
-    expect(insertIndex).toBeGreaterThan(startIndex);
-    expect(insertIndex).toBeLessThan(endIndex);
+    expect(deleteIndex).toBeGreaterThanOrEqual(0);
+    expect(insertIndex).toBeGreaterThan(deleteIndex);
   });
 });

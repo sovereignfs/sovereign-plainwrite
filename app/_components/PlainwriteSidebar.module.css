@@ -48,7 +48,6 @@
 }
 
 .nav a,
-.disabled,
 .backLink {
   border-radius: var(--sv-radius-sm);
   color: var(--sv-color-text-primary);
@@ -65,11 +64,6 @@
   background: var(--sv-color-surface);
   box-shadow: inset 3px 0 0 var(--sv-color-accent);
   font-weight: var(--sv-font-weight-semibold);
-}
-
-.disabled {
-  color: var(--sv-color-text-muted);
-  cursor: not-allowed;
 }
 
 .backLink {

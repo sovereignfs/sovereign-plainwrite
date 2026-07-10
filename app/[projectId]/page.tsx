@@ -10,7 +10,8 @@ import {
   stageContentDeletion,
   syncProjectContent,
 } from '../_lib/actions';
-import { FormCheckbox } from '../_components/FormCheckbox';
+import { PublishAllForm } from '../_components/PublishAllForm';
+import { SyncContentForm } from '../_components/SyncContentForm';
 import { groupContentFiles } from '../_lib/content-rules';
 import { canEditProject, canManageProject } from '../_lib/project-rules';
 import styles from './page.module.css';
@@ -34,6 +35,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const repositoryLabel = `${project.repoOwner}/${project.repoName}`;
   const contentGroups = groupContentFiles(contentFiles);
   const committedCount = contentFiles.filter((file) => file.status === 'committed').length;
+  const draftCount = contentFiles.filter((file) => file.status === 'draft').length;
 
   return (
     <div className={styles.page}>
@@ -117,21 +119,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           <p>Sync repository content, create a local draft, or manage project access.</p>
         </div>
         <div className={styles.actions}>
+          {userCanEdit ? <SyncContentForm action={syncProjectContent.bind(null, projectId)} /> : null}
           {userCanEdit ? (
-            <form action={syncProjectContent.bind(null, projectId)}>
-              <Button type="submit">Sync content</Button>
-            </form>
-          ) : null}
-          {userCanEdit ? (
-            <form
+            <PublishAllForm
               action={publishAllCommittedDrafts.bind(null, projectId)}
-              className={styles.publishAllForm}
-            >
-              <FormCheckbox name="skipConflicts" label="Skip conflicts" />
-              <Button type="submit" disabled={committedCount === 0}>
-                Publish all
-              </Button>
-            </form>
+              committedCount={committedCount}
+            />
           ) : null}
           <Link href={`/plainwrite/${projectId}/settings`}>
             {userCanManage ? 'Manage project' : 'View settings'}
@@ -202,8 +195,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </div>
         ) : (
           <p className={styles.emptyText}>
-            Run sync to fetch public GitHub repository content. Private repository sync needs the
-            credential task next.
+            Run sync to fetch repository content. Private repositories need a connected GitHub
+            credential in project settings before content can sync.
           </p>
         )}
       </section>
@@ -216,8 +209,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         />
         <DashboardCard
           title="Drafts"
-          status="Not started"
-          description="Local draft tracking is planned after repository content can be read."
+          status={draftCount > 0 ? `${draftCount} in progress` : 'No drafts yet'}
+          description="Local edits you've saved but not marked ready to commit."
         />
         <DashboardCard
           title="Publishing"

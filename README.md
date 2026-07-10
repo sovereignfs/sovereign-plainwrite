@@ -1,11 +1,12 @@
 # Plainwrite
 
 Plainwrite is a Sovereign plugin for editing Markdown content in git-backed
-static sites. The current implementation covers the v0.1 foundation: project
-management, project membership, GitHub content sync, local draft editing,
-single-file and publish-all GitHub publishing, staged deletion, schema tools,
-GitHub OAuth, and GitHub personal access token storage through the Sovereign
-secret vault.
+static sites. The v0.1 foundation is complete: project management, project
+membership, GitHub content sync, local draft editing with structured
+frontmatter fields and autosave, single-file and publish-all GitHub
+publishing, staged deletion, schema tools, GitHub OAuth, GitHub personal
+access token storage through the Sovereign secret vault, and the platform
+data contract, portability, notification, and activity integrations.
 
 ## Local development
 
@@ -38,7 +39,9 @@ Implemented now:
 - Local editor workflow for opening remote content, creating new files, editing
   raw YAML frontmatter and Markdown body, previewing escaped Markdown, saving
   drafts, marking drafts ready to commit, publishing one committed file, and
-  discarding drafts.
+  discarding drafts. Frontmatter can be edited as structured, schema-typed
+  fields (with a raw YAML toggle) when the file's collection has a schema, and
+  edits autosave after two seconds idle.
 - GitHub OAuth connection UI backed by manifest-declared `sdk.connections`
   provider config, with PAT fallback when OAuth is not configured. Tokens are
   stored with `sdk.secrets`; Plainwrite stores only `connection_id`,
@@ -53,12 +56,16 @@ Implemented now:
   skip conflicted files.
 - Collection schema inference samples synced files and gives owners editable
   schema controls with reset-to-inferred behavior.
+- Three read-only data contracts (`plainwrite.projects`, `.content-index`,
+  `.drafts`), export/import/delete portability participation, notifications
+  on being added to a project and on publish, and activity records for
+  project and publish events. See `roadmap.md`'s PLW-010 entry for the exact
+  scope (e.g. content-index has no body snippets — Plainwrite never caches
+  file bodies).
 
 Not implemented yet:
 
 - Pull-request publishing and structured conflict-resolution UI.
-- Structured frontmatter fields, autosave, data contracts, portability
-  handlers, notifications, and activity events.
 
 ## GitHub credentials
 

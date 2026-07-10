@@ -1,0 +1,37 @@
+<svg viewBox="0 0 700 430" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}.ph{fill:#efede7}</style>
+  <rect width="700" height="430" fill="#f4f3ee" rx="12"/>
+  <rect x="20" y="20" width="660" height="390" class="card" rx="12"/>
+
+  <text x="40" y="52" font-size="16" font-weight="600" class="t">Plainwrite</text>
+  <text x="660" y="52" font-size="12" text-anchor="end" class="tm">Your sites</text>
+  <line x1="20" y1="68" x2="680" y2="68" stroke="#dddbd3"/>
+
+  <rect x="324" y="98" width="52" height="52" rx="12" class="ph" stroke="#dddbd3"/>
+  <text x="350" y="132" font-size="22" text-anchor="middle" class="ts">✎</text>
+
+  <text x="350" y="180" font-size="18" font-weight="600" text-anchor="middle" class="t">Connect your first site</text>
+  <text x="350" y="203" font-size="13" text-anchor="middle" class="ts">Plainwrite turns your website's content into a simple writing space.</text>
+  <text x="350" y="221" font-size="13" text-anchor="middle" class="ts">Write, review, and publish — no technical steps in between.</text>
+
+  <rect x="288" y="238" width="124" height="34" rx="8" fill="#2c2c2a"/>
+  <text x="350" y="260" font-size="13" font-weight="600" text-anchor="middle" class="tw">+ Connect a site</text>
+
+  <rect x="110" y="294" width="152" height="66" rx="8" fill="none" stroke="#dddbd3"/>
+  <text x="124" y="314" font-size="11" class="tm">Step 1</text>
+  <text x="124" y="331" font-size="12" font-weight="600" class="t">Point to your site</text>
+  <text x="124" y="348" font-size="11" class="tm">Paste its address</text>
+
+  <rect x="274" y="294" width="152" height="66" rx="8" fill="none" stroke="#dddbd3"/>
+  <text x="288" y="314" font-size="11" class="tm">Step 2</text>
+  <text x="288" y="331" font-size="12" font-weight="600" class="t">Connect access</text>
+  <text x="288" y="348" font-size="11" class="tm">So publishing works</text>
+
+  <rect x="438" y="294" width="152" height="66" rx="8" fill="none" stroke="#dddbd3"/>
+  <text x="452" y="314" font-size="11" class="tm">Step 3</text>
+  <text x="452" y="331" font-size="12" font-weight="600" class="t">Start writing</text>
+  <text x="452" y="348" font-size="11" class="tm">Your posts appear here</text>
+
+  <line x1="20" y1="378" x2="680" y2="378" stroke="#dddbd3"/>
+  <text x="350" y="399" font-size="12" text-anchor="middle" class="tm">Writing for someone else's site? Ask the site owner to add you — it'll show up here.</text>
+</svg>

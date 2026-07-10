@@ -1,0 +1,30 @@
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, sans-serif">
+  <style>.t{fill:#2c2c2a}.ts{fill:#5f5e5a}.tm{fill:#98968f}.tw{fill:#ffffff}.card{fill:#ffffff;stroke:#dddbd3}</style>
+  <rect width="700" height="400" fill="#f4f3ee" rx="12"/>
+  <rect x="130" y="30" width="440" height="340" class="card" rx="12"/>
+
+  <circle cx="170" cy="66" r="11" fill="#2c2c2a"/>
+  <text x="170" y="70" font-size="11" font-weight="600" text-anchor="middle" class="tw">1</text>
+  <line x1="185" y1="66" x2="335" y2="66" stroke="#dddbd3"/>
+  <circle cx="350" cy="66" r="11" fill="none" stroke="#c5c3bb"/>
+  <text x="350" y="70" font-size="11" text-anchor="middle" class="tm">2</text>
+  <line x1="365" y1="66" x2="515" y2="66" stroke="#dddbd3"/>
+  <circle cx="530" cy="66" r="11" fill="none" stroke="#c5c3bb"/>
+  <text x="530" y="70" font-size="11" text-anchor="middle" class="tm">3</text>
+
+  <text x="158" y="112" font-size="17" font-weight="600" class="t">Where does your site live?</text>
+  <text x="158" y="134" font-size="12" class="ts">Paste the GitHub address of your site's code. We'll look inside</text>
+  <text x="158" y="150" font-size="12" class="ts">and suggest the rest.</text>
+
+  <text x="158" y="180" font-size="11" class="tm">Site address</text>
+  <rect x="158" y="188" width="384" height="36" rx="8" fill="none" stroke="#c5c3bb"/>
+  <text x="172" y="211" font-size="13" class="t">github.com/acme/company-blog</text>
+
+  <rect x="158" y="238" width="384" height="52" rx="8" fill="#e1f5ee"/>
+  <text x="172" y="259" font-size="11.5" fill="#0f6e56">✓ Found it — an Astro site with 14 posts in src/content.</text>
+  <text x="172" y="276" font-size="11.5" fill="#0f6e56">We'll use these settings; you can change them later.</text>
+
+  <text x="158" y="330" font-size="11" class="tm">▾ Choose branch and folder manually</text>
+  <rect x="460" y="308" width="82" height="32" rx="8" fill="#2c2c2a"/>
+  <text x="501" y="328" font-size="12" font-weight="600" text-anchor="middle" class="tw">Continue</text>
+</svg>

@@ -79,18 +79,7 @@ The platform now has a clearer path for this proposal's open gaps:
 | `repository`                       | `https://github.com/sovereignfs/sovereign-plainwrite`                                            |
 | `compatibility.minPlatformVersion` | `0.18.2` — current platform baseline with `sdk.secrets`, `sdk.connections`, provider config, `sdk.data`, `sdk.directory`, portability, notifications, activity, and required UI primitives |
 
-**Current implementation state:** the live `manifest.json` declares only `auth:session`,
-`db:readWrite`, and `connections.providers.git.github` — the permissions and
-`data.provides` contracts below (`notifications:send`, `data:provide`,
-`data:export`, `data:import`, `activity:write`, `plainwrite.projects`,
-`plainwrite.content-index`, `plainwrite.drafts`) are the target shape once
-PLW-010 lands. A declared-but-unimplemented permission or data contract is
-misleading to an admin reviewing install-time permissions and would error for
-any external consumer that discovers it before a resolver exists, so they're
-added back to the manifest in the same PR that implements them rather than
-declared upfront.
-
-Proposed `manifest.json` (target shape once PLW-010 lands):
+`manifest.json`:
 
 ```json
 {
@@ -124,7 +113,7 @@ Proposed `manifest.json` (target shape once PLW-010 lands):
       {
         "contract": "plainwrite.content-index",
         "version": 1,
-        "description": "File metadata and searchable snippets for explicitly shared projects."
+        "description": "File metadata for projects the current user can access, where the project's metadata visibility setting permits exposure."
       },
       {
         "contract": "plainwrite.drafts",
@@ -674,7 +663,7 @@ metadata, but never includes credentials or raw provider error bodies.
 | `sdk.db`            | Read/write all `plainwrite_*` tables            | Stable       |
 | `sdk.notifications` | Share/publish notifications                     | Experimental |
 | `sdk.activity`      | Platform-visible project/publish events         | Experimental |
-| `sdk.data`          | Expose project metadata and content snippets    | Experimental |
+| `sdk.data`          | Expose project and content-file metadata        | Experimental |
 | `sdk.secrets`       | Git provider OAuth/PAT credentials              | RFC 0043     |
 | `sdk.connections`   | OAuth state, provider config, connection status | RFC 0049     |
 | `sdk.portability`   | Export/import/delete participation              | Experimental |
@@ -684,12 +673,12 @@ Plainwrite requires no `sdk.mailer` in v1.
 
 ### Data contracts
 
-Candidate read-only contracts:
+Implemented read-only contracts (`app/_lib/data-contracts.ts`):
 
 | Contract                   | Version | Shape                                      |
 | -------------------------- | ------- | ------------------------------------------ |
-| `plainwrite.projects`      | 1       | Projects visible to the current user. |
-| `plainwrite.content-index` | 1       | File metadata and searchable snippets for projects where the current user has access and the project metadata visibility setting permits exposure. |
+| `plainwrite.projects`      | 1       | Non-archived projects the current user is a member of, with their role. |
+| `plainwrite.content-index` | 1       | File metadata (path, collection, filename, last synced) for projects where the current user has access and the project's metadata visibility setting permits exposure. **No body snippets** — `plainwrite_file_cache` never caches file bodies, only metadata; snippets are deferred until content caching exists. |
 | `plainwrite.drafts`        | 1       | Draft metadata for the current user. Full draft content is never exposed by default and requires an explicit future contract revision. |
 
 ### Portability and deletion

@@ -18,6 +18,7 @@ import {
 } from '../../_lib/actions';
 import { canEditProject, canManageProject } from '../../_lib/project-rules';
 import { FormCheckbox } from '../../_components/FormCheckbox';
+import { InviteMemberForm } from '../../_components/InviteMemberForm';
 import styles from './settings.module.css';
 
 interface SettingsPageProps {
@@ -331,19 +332,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
           ))}
         </div>
         {userCanManage ? (
-          <form action={inviteProjectMember.bind(null, project.id)} className={styles.inlineForm}>
-            <FormField label="User ID">{(field) => <Input {...field} name="userId" required />}</FormField>
-            <FormField label="Role">
-              {(field) => (
-                <Select {...field} name="role" defaultValue="viewer">
-                  <option value="viewer">Viewer</option>
-                  <option value="editor">Editor</option>
-                  <option value="owner">Owner</option>
-                </Select>
-              )}
-            </FormField>
-            <Button type="submit">Add member</Button>
-          </form>
+          <InviteMemberForm projectId={project.id} action={inviteProjectMember.bind(null, project.id)} />
         ) : null}
       </section>
 
