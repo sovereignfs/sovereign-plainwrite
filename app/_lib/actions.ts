@@ -806,7 +806,7 @@ export async function publishCommittedDraft(
   projectId: string,
   path: string,
   _prevState: ActionResult | null,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<ActionResult> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'editor');
@@ -822,18 +822,34 @@ export async function publishCommittedDraft(
     return { ok: false, error: 'Commit this draft before publishing.' };
   }
 
+  // "Publish mine anyway" from the conflict review screen: the whole point
+  // is to overwrite whatever changed on the site, so skip the conflict
+  // check. GitHub's contents API still needs the file's *current* sha to
+  // accept a write, though — the draft's own baseSha is exactly the stale
+  // value that caused the conflict — so adopt whatever is on the site right
+  // now as the base for this one write.
+  const force = formString(formData, 'force') === 'true';
+  let baseSha = draft.baseSha;
+
   const message = draft.commitMessage || `Update ${path.split('/').at(-1) ?? path}`;
   const provider = getGitProvider(project.provider);
   const adapter = getSsgAdapter(project.ssgType);
 
   try {
-    await assertNoPublishConflict(provider, project, credential.token, path, draft);
+    if (force) {
+      const remote = await provider.getFileContent(project, path, { token: credential.token }).catch(
+        (error) => (error instanceof GitProviderError && error.notFound ? null : Promise.reject(error)),
+      );
+      baseSha = remote?.sha ?? null;
+    } else {
+      await assertNoPublishConflict(provider, project, credential.token, path, draft);
+    }
     const result = await provider.publishFile(
       project,
       {
         path,
         content: draft.content,
-        baseSha: draft.baseSha,
+        baseSha,
         message,
       },
       { token: credential.token },
@@ -1154,6 +1170,87 @@ export async function discardDraft(projectId: string, path: string) {
       ),
     );
   revalidateEditor(projectId, path);
+}
+
+/**
+ * "Keep editing mine" on the conflict review screen: accepts that the site
+ * changed without discarding local content or publishing — just moves the
+ * draft's recorded base revision forward to what's on the site right now,
+ * so the next (non-forced) publish attempt no longer conflicts on a stale
+ * sha. Does not touch draft.content; the writer's edits are untouched.
+ */
+export async function refreshDraftBase(
+  projectId: string,
+  path: string,
+  _prevState: ActionResult | null,
+  _formData: FormData,
+): Promise<ActionResult> {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  assertContentPathAllowed(project, path);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (!credential.token) {
+    return { ok: false, error: 'Connect a GitHub token to check the site.' };
+  }
+  const draft = await getCurrentUserDraft(db, tenantId, projectId, path, userId);
+  if (!draft) {
+    return { ok: false, error: 'No local draft to update.' };
+  }
+
+  const provider = getGitProvider(project.provider);
+  try {
+    const remote = await provider
+      .getFileContent(project, path, { token: credential.token })
+      .catch((error) =>
+        error instanceof GitProviderError && error.notFound ? null : Promise.reject(error),
+      );
+    await db
+      .update(plainwriteDrafts)
+      .set({ baseSha: remote?.sha ?? null, updatedAt: now() })
+      .where(eq(plainwriteDrafts.id, draft.id));
+  } catch (error) {
+    return { ok: false, error: sanitizePublishError(error) };
+  }
+
+  revalidateEditor(projectId, path);
+  return { ok: true, message: "Updated to the site's latest version. Publish again when ready." };
+}
+
+/**
+ * Read-only fetch backing the conflict review screen's two-version
+ * comparison — the current local draft plus a fresh copy of whatever is on
+ * the site right now (not the file cache, which may itself be stale; this
+ * is specifically for showing the writer what changed since they started
+ * editing).
+ */
+export async function getConflictComparison(
+  projectId: string,
+  path: string,
+): Promise<{ localContent: string; remoteContent: string | null; remoteMissing: boolean }> {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
+  const project = await getProjectRow(db, tenantId, projectId);
+  assertContentPathAllowed(project, path);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (!credential.token) {
+    throw new Error('Connect a GitHub token to compare with the site.');
+  }
+  const draft = await getCurrentUserDraft(db, tenantId, projectId, path, userId);
+  if (!draft || draft.content === null) {
+    throw new Error('No local draft to compare.');
+  }
+
+  const provider = getGitProvider(project.provider);
+  try {
+    const remote = await provider.getFileContent(project, path, { token: credential.token });
+    return { localContent: draft.content, remoteContent: remote.content, remoteMissing: false };
+  } catch (error) {
+    if (error instanceof GitProviderError && error.notFound) {
+      return { localContent: draft.content, remoteContent: null, remoteMissing: true };
+    }
+    throw error;
+  }
 }
 
 export async function connectGitHubPat(projectId: string, formData: FormData) {

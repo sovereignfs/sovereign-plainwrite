@@ -7,6 +7,7 @@ import {
   discardDraft,
   getEditorState,
   publishCommittedDraft,
+  refreshDraftBase,
   saveDraft,
 } from '../../../_lib/actions';
 import { parseMarkdownDocument } from '../../../_lib/editor-rules';
@@ -68,6 +69,7 @@ export default async function EditorPage({ params, searchParams }: EditorPagePro
           </section>
 
           <MarkdownEditor
+            projectId={projectId}
             path={path}
             content={editor.content}
             baseSha={editor.baseSha}
@@ -79,6 +81,7 @@ export default async function EditorPage({ params, searchParams }: EditorPagePro
             commitAction={commitDraft.bind(null, projectId, path)}
             publishAction={publishCommittedDraft.bind(null, projectId, path)}
             discardAction={discardDraft.bind(null, projectId, path)}
+            refreshBaseAction={refreshDraftBase.bind(null, projectId, path)}
           />
         </>
       )}

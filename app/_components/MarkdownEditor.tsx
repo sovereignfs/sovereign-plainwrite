@@ -12,10 +12,21 @@ import {
   serializeStructuredFrontmatter,
 } from '../_lib/editor-rules';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ConflictReviewDialog } from './ConflictReviewDialog';
 import { StructuredFrontmatterFields } from './StructuredFrontmatterFields';
 import styles from './MarkdownEditor.module.css';
 
 const AUTOSAVE_IDLE_MS = 2000;
+
+/**
+ * assertNoPublishConflict (actions.ts) always throws with this exact
+ * prefix — the one place that convention is defined; checked here so the
+ * "Review changes" affordance only appears for a real conflict, not any
+ * other publish failure (missing token, network error, etc.).
+ */
+function isConflictError(message: string) {
+  return message.startsWith('Conflict:');
+}
 
 /**
  * `formatPostStatus('unmodified')` reads "Live on site" — correct for an
@@ -31,6 +42,7 @@ function editorStatusLabel(status: string, baseSha: string | null) {
 }
 
 interface MarkdownEditorProps {
+  projectId: string;
   path: string;
   content: string;
   baseSha: string | null;
@@ -42,12 +54,14 @@ interface MarkdownEditorProps {
   commitAction: (formData: FormData) => void | Promise<void>;
   publishAction: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   discardAction: () => void | Promise<void>;
+  refreshBaseAction: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
 }
 
 type FrontmatterMode = 'structured' | 'raw';
 type AutosaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export function MarkdownEditor({
+  projectId,
   path,
   content,
   baseSha,
@@ -59,6 +73,7 @@ export function MarkdownEditor({
   commitAction,
   publishAction,
   discardAction,
+  refreshBaseAction,
 }: MarkdownEditorProps) {
   const parsed = useMemo(() => parseMarkdownDocument(content), [content]);
   const [frontmatterYaml, setFrontmatterYaml] = useState(parsed.frontmatterYaml);
@@ -67,6 +82,7 @@ export function MarkdownEditor({
   const [body, setBody] = useState(parsed.body);
   const [message, setMessage] = useState(commitMessage ?? `Update ${path.split('/').at(-1) ?? path}`);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [conflictReviewOpen, setConflictReviewOpen] = useState(false);
   // Tracks the content as of the last successful save (manual or auto) —
   // NOT the originally-loaded content — so autosave correctly clears the
   // dirty flag instead of re-triggering itself and re-warning on unload
@@ -261,9 +277,18 @@ export function MarkdownEditor({
             </div>
           ) : null}
           {publishState && !publishState.ok ? (
-            <p className={styles.feedbackError} role="status" aria-live="polite">
-              {publishState.error}
-            </p>
+            <div className={styles.feedbackError} role="status" aria-live="polite">
+              <p>{publishState.error}</p>
+              {isConflictError(publishState.error) ? (
+                <button
+                  type="button"
+                  className={styles.reviewChangesLink}
+                  onClick={() => setConflictReviewOpen(true)}
+                >
+                  Review changes
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </section>
 
@@ -288,6 +313,15 @@ export function MarkdownEditor({
                 setDiscardConfirmOpen(false);
                 void discardAction();
               }}
+            />
+            <ConflictReviewDialog
+              open={conflictReviewOpen}
+              onClose={() => setConflictReviewOpen(false)}
+              projectId={projectId}
+              path={path}
+              discardAction={discardAction}
+              refreshBaseAction={refreshBaseAction}
+              forcePublishAction={publishAction}
             />
           </>
         ) : null}

@@ -1010,6 +1010,71 @@ Verification:
   the browser (see above) — the first phase of this epic where that was
   possible this session.
 
+### ✅ PLW-022 Conflict Review
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` (proposal), phase 4 of 6.
+
+**Status:** ✅ Complete (single-file publish flow).
+
+Phase 4 of the writer-first UI redesign: when a publish conflict is
+detected (the site's copy of a file changed since the draft's base
+revision), show a two-version comparison instead of a bare error string,
+with three actions mapped to real operations. Builds on PLW-019/020/021.
+
+Progress as of 2026-07-10:
+
+- [x] `app/_lib/conflict-rules.ts` (new): `diffParagraphs` — a deliberately
+  crude positional paragraph diff (not a real LCS/Myers algorithm; see the
+  file's docblock for why that's the right tradeoff here) marking which
+  paragraphs differ between two markdown bodies.
+- [x] `getConflictComparison` (new, read-only): fetches the current local
+  draft plus a fresh copy of what's on the site right now (not the
+  file-cache, which can itself be stale) for the review screen.
+- [x] `refreshDraftBase` (new): "Keep editing mine" — moves the draft's
+  recorded base revision forward to the site's current sha without
+  touching draft content or publishing, so the next normal publish attempt
+  no longer conflicts on a stale sha.
+- [x] `publishCommittedDraft` gained a `force` form field: "Publish mine
+  anyway" skips the conflict check and adopts whatever sha is on the site
+  right now as the base for the write — GitHub's contents API needs the
+  *current* blob sha to accept an update, so force-publish still has to
+  look that up, it just doesn't refuse to proceed on a mismatch.
+- [x] `ConflictReviewDialog.tsx` (new): two-column comparison ("Version on
+  the site" / "Your version") with changed paragraphs highlighted; the
+  three actions are "Use the site's version" (existing `discardDraft`),
+  "Keep editing mine" (`refreshDraftBase`), and "Publish mine anyway"
+  (`publishCommittedDraft` with `force=true`). Reachable via a "Review
+  changes" link that appears only when the inline publish error is
+  actually a conflict (`Conflict:` prefix — `assertNoPublishConflict`'s one
+  and only message convention).
+- [x] Scoped to the single-file editor publish flow only.
+  `PublishAllForm`'s "held back" conflicts (skip-conflicts checkbox) still
+  resolve by skip-and-report via the existing `ActionResult` message, not a
+  per-file review — extending review there is a reasonable follow-on, not
+  done here.
+- [x] Added `actions-conflict-review.test.ts` (10 cases: comparison
+  fetch incl. remote-missing, base-sha refresh incl. remote-missing,
+  ordinary conflict detection, force-publish sha adoption, force-publish
+  against a since-deleted remote) and `conflict-rules.test.ts` (5 cases for
+  the diff function).
+- [x] Live-verified the non-regression path in the dev server (editor loads
+  with the new props, "Publish" still shows the expected non-conflict error
+  with no spurious "Review changes" link). A genuine remote conflict needs
+  push access to a real GitHub repo, which this session's environment
+  doesn't have — the conflict-detection and force-override logic itself is
+  covered by the automated tests instead.
+
+Acceptance criteria:
+
+- A publish conflict shows what changed instead of a bare error string.
+- All three review actions correspond to real, tested server operations;
+  none of them can leave the draft or the site in an inconsistent state.
+
+Verification:
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm test` (117/117), `pnpm format:check`,
+  and a full `pnpm build` all pass from the platform root.
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

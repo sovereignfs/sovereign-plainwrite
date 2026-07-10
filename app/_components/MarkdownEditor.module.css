@@ -65,13 +65,29 @@
 }
 
 .feedbackError {
-  margin: 0;
+  display: grid;
+  gap: var(--sv-space-1);
   font-size: var(--sv-font-size-sm);
   padding: var(--sv-space-2) var(--sv-space-3);
   border-radius: var(--sv-radius-md);
   border: 1px solid var(--sv-color-error-border);
   background-color: var(--sv-color-error-surface);
   color: var(--sv-color-error-text);
+}
+
+.feedbackError p {
+  margin: 0;
+}
+
+.reviewChangesLink {
+  background: none;
+  border: none;
+  color: var(--sv-color-error-text);
+  cursor: pointer;
+  font: inherit;
+  justify-self: start;
+  padding: 0;
+  text-decoration: underline;
 }
 
 .actions {

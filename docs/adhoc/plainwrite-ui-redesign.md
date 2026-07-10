@@ -1,7 +1,7 @@
 # Plainwrite UI redesign — writer-first simplification
 
-**Status:** Phases 1–3 complete — see PLW-019/PLW-020/PLW-021 in `roadmap.md`.
-Phases 4–6 (conflict review, connect wizard, editor modes) remain proposals.
+**Status:** Phases 1–4 complete — see PLW-019/PLW-020/PLW-021/PLW-022 in
+`roadmap.md`. Phases 5–6 (connect wizard, editor modes) remain proposals.
 **Date:** 2026-07-10
 **Wireframe assets:** [`docs/adhoc/plainwrite-ui-redesign/`](./plainwrite-ui-redesign/) (SVG, one per screen)
 
@@ -228,8 +228,11 @@ Each phase is shippable on its own and roughly maps to one roadmap task.
    listing what goes live. No true conflict preflight yet (that's phase 4);
    skipped conflicts still resolve server-side and surface via the existing
    inline `ActionResult` message. (PLW-021)
-4. **Conflict review** — the two-version screen and the baseSha-refresh /
-   override actions.
+4. **Conflict review** ✅ — the two-version screen and the baseSha-refresh /
+   override actions, for the single-file publish flow. `PublishAllForm`'s
+   held-back conflicts still just skip-and-report (no per-file review from
+   the multi-publish dialog yet — a reasonable follow-on, not blocking).
+   (PLW-022)
 5. **Connect-a-site wizard** — detection endpoint + 3-step flow, replacing the
    new-project form.
 6. **Editor modes** — mode switcher, Preview mode (cheap), then Write mode
