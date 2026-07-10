@@ -817,6 +817,62 @@ Verification:
 
 - Run docs format/check commands used by the repository.
 
+### ✅ PLW-019 Writer-First UI Copy Pass
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` (proposal), phase 1 of 6.
+
+**Status:** ✅ Complete.
+
+Phase 1 of the writer-first UI redesign proposed in
+`docs/adhoc/plainwrite-ui-redesign.md`: translate git/technical vocabulary to
+plain language across every existing screen, with no layout or data-model
+changes. See the doc's §3 jargon table and §8 phasing for the full plan;
+phases 2–6 (navigation restructure, new-post/publish flow, conflict review,
+connect-a-site wizard, editor modes) are follow-on tasks, not yet assigned
+IDs.
+
+Progress as of 2026-07-10:
+
+- [x] Added `app/_lib/copy.ts` — shared `formatProjectRole`,
+  `formatMetadataVisibility`, `formatPostStatus` translations (project role →
+  Reader/Writer/Owner, draft status → Writing/Ready to publish/Live on site,
+  metadata visibility → plain phrases) so the mapping stays consistent across
+  screens instead of drifting per-file.
+- [x] Home (`app/page.tsx`, `NewProjectDialog.tsx`): "Projects" → "Your
+  sites", empty state rewritten as an invitation, "New project" dialog →
+  "Connect a site" with plain-language field labels.
+- [x] Site dashboard (`app/[projectId]/page.tsx`): repository/setup card,
+  actions panel, new-file panel, content list, work-area cards, and publish
+  history all reworded (e.g. "Content files" → "Posts", "Drafts" → "Writing",
+  "Publishing" → "Ready to publish", "Sync content" → "Check for updates").
+- [x] Editor (`MarkdownEditor.tsx`, `editor/[...filePath]/page.tsx`): "Save
+  draft" → "Save", "Mark ready" → "Ready to publish", "Discard draft" →
+  "Discard changes"; raw base-revision SHA display replaced with a plain
+  synced/new-post status; stale "stay local until a publishing task connects
+  Git write-back" copy corrected (publishing has worked since PLW-007).
+- [x] Settings (`settings/page.tsx`, `InviteMemberForm.tsx`): section
+  headings and field labels reworded for owners ("GitHub credential" →
+  "Publishing access", "Collection schemas" → "Content fields", "Members" →
+  "People"); member/invite role options display Reader/Writer/Owner.
+- [x] Sidebar (`PlainwriteSidebar.tsx`): "Projects"/"Content" → "Sites"/
+  "Posts", "Back to projects" → "Back to sites".
+- [x] No component-render tests existed to break (all existing tests cover
+  `app/_lib/actions.ts` server logic); verified via `pnpm typecheck`,
+  `pnpm lint`, `pnpm test` (18 files / 92 tests), `pnpm format:check`.
+
+Acceptance criteria:
+
+- No git/internal vocabulary (commit, sync, SHA, revision, repository,
+  collection, credential) appears in a user-facing string reachable by a
+  non-owner role, per the jargon table in the redesign doc.
+- Underlying stored values (role strings, draft status strings, metadata
+  visibility enum) are unchanged — this is a display-only pass.
+
+Verification:
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm test` (92/92), `pnpm format:check` all
+  pass from the platform root.
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

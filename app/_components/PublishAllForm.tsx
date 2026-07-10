@@ -18,9 +18,9 @@ export function PublishAllForm({
   return (
     <div>
       <form action={formAction} className={styles.publishAllForm}>
-        <FormCheckbox name="skipConflicts" label="Skip conflicts" />
+        <FormCheckbox name="skipConflicts" label="Skip posts that changed on the site" />
         <Button type="submit" disabled={committedCount === 0 || pending}>
-          {pending ? 'Publishing…' : 'Publish all'}
+          {pending ? 'Publishing…' : committedCount > 0 ? `Put ${committedCount} live` : 'Publish'}
         </Button>
       </form>
       {state && !state.ok ? (

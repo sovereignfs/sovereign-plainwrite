@@ -1,6 +1,7 @@
 # Plainwrite UI redesign — writer-first simplification
 
-**Status:** Proposal (wireframes + spec, no implementation yet)
+**Status:** Phase 1 (copy pass) complete — see PLW-019 in `roadmap.md`. Phases
+2–6 (layout/navigation/new features) remain proposals.
 **Date:** 2026-07-10
 **Wireframe assets:** [`docs/adhoc/plainwrite-ui-redesign/`](./plainwrite-ui-redesign/) (SVG, one per screen)
 
@@ -217,8 +218,9 @@ People / Content model / Danger zone), separated from daily use:
 
 Each phase is shippable on its own and roughly maps to one roadmap task.
 
-1. **Copy pass** — jargon translation table (§3) applied to existing screens;
-   status pills, button labels, empty states, error strings. No layout change.
+1. **Copy pass** ✅ — jargon translation table (§3) applied to existing
+   screens; status pills, button labels, empty states, error strings. No
+   layout change. (PLW-019)
 2. **Navigation + home restructure** — site cards (both home states), content
    home with pipeline tabs, settings split into the owner-only setup area.
 3. **New post + publish flow** — title-first dialog, publish confirmation with

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import { Button, CodeTextarea, FormField, Input, SegmentedControl } from '@sovereignfs/ui';
 import type { ActionResult } from '../_lib/actions';
+import { formatPostStatus } from '../_lib/copy';
 import type { CollectionSchemaField } from '../_lib/schema-rules';
 import {
   parseMarkdownDocument,
@@ -144,21 +145,21 @@ export function MarkdownEditor({
           <div className={styles.sectionHeader}>
             <div>
               <p className={styles.eyebrow}>Metadata</p>
-              <h2 id="frontmatter-heading">Frontmatter</h2>
+              <h2 id="frontmatter-heading">Details</h2>
             </div>
             {schemaFields.length > 0 ? (
               <SegmentedControl
-                aria-label="Frontmatter editing mode"
+                aria-label="Details editing mode"
                 value={mode}
                 onChange={handleModeChange}
                 options={[
                   { label: 'Structured', value: 'structured' },
-                  { label: 'Raw YAML', value: 'raw' },
+                  { label: 'Raw text', value: 'raw' },
                 ]}
                 size="sm"
               />
             ) : (
-              <span>{frontmatterYaml.trim() ? 'Frontmatter enabled' : 'No frontmatter'}</span>
+              <span>{frontmatterYaml.trim() ? 'Details added' : 'No details yet'}</span>
             )}
           </div>
           {mode === 'structured' && schemaFields.length > 0 ? (
@@ -170,7 +171,7 @@ export function MarkdownEditor({
             />
           ) : (
             <CodeTextarea
-              aria-label="Raw YAML frontmatter"
+              aria-label="Raw text details"
               value={frontmatterYaml}
               onChange={(event) => setFrontmatterYaml(event.currentTarget.value)}
               rows={8}
@@ -182,13 +183,13 @@ export function MarkdownEditor({
         <section className={styles.bodyPanel} aria-labelledby="body-heading">
           <div className={styles.sectionHeader}>
             <div>
-              <p className={styles.eyebrow}>Markdown</p>
-              <h2 id="body-heading">Body</h2>
+              <p className={styles.eyebrow}>Content</p>
+              <h2 id="body-heading">Post</h2>
             </div>
-            <span>{statusLabel(status)}</span>
+            <span>{formatPostStatus(status)}</span>
           </div>
           <CodeTextarea
-            aria-label="Markdown body"
+            aria-label="Post content"
             value={body}
             onChange={(event) => setBody(event.currentTarget.value)}
             rows={24}
@@ -197,19 +198,19 @@ export function MarkdownEditor({
         </section>
       </form>
 
-      <aside className={styles.sidePanel} aria-label="Draft controls and preview">
+      <aside className={styles.sidePanel} aria-label="Post controls and preview">
         <section className={styles.commitPanel} aria-labelledby="commit-heading">
           <div>
             <p className={styles.eyebrow}>Current state</p>
-            <h2 id="commit-heading">{statusLabel(status)}</h2>
-            <p>Saved drafts stay local until a publishing task connects Git write-back.</p>
+            <h2 id="commit-heading">{formatPostStatus(status)}</h2>
+            <p>Changes stay private until you publish them.</p>
             {userCanEdit && autosaveState !== 'idle' ? (
               <p className={styles.autosaveStatus} role={autosaveState === 'error' ? 'alert' : undefined}>
                 {autosaveLabel(autosaveState)}
               </p>
             ) : null}
           </div>
-          <FormField label="Commit message" id="commitMessage">
+          <FormField label="Change note" id="commitMessage">
             {(field) => (
               <Input
                 {...field}
@@ -224,7 +225,7 @@ export function MarkdownEditor({
           {userCanEdit ? (
             <div className={styles.actions}>
               <Button type="submit" form="plainwrite-editor-form">
-                Save draft
+                Save
               </Button>
               <Button
                 type="submit"
@@ -232,7 +233,7 @@ export function MarkdownEditor({
                 formAction={commitAction}
                 variant="secondary"
               >
-                Mark ready
+                Ready to publish
               </Button>
               <form action={publishFormAction}>
                 <Button
@@ -262,13 +263,13 @@ export function MarkdownEditor({
               disabled={status === 'unmodified'}
               onClick={() => setDiscardConfirmOpen(true)}
             >
-              Discard draft
+              Discard changes
             </Button>
             <ConfirmDialog
               open={discardConfirmOpen}
-              title="Discard draft"
-              message="This removes your local draft and reloads the current remote content. This cannot be undone."
-              confirmLabel="Discard draft"
+              title="Discard changes"
+              message="This removes your changes and reloads the current version from your site. This cannot be undone."
+              confirmLabel="Discard changes"
               onCancel={() => setDiscardConfirmOpen(false)}
               onConfirm={() => {
                 setDiscardConfirmOpen(false);
@@ -282,7 +283,7 @@ export function MarkdownEditor({
           <div className={styles.sectionHeader}>
             <div>
               <p className={styles.eyebrow}>Preview</p>
-              <h2 id="preview-heading">Rendered Markdown</h2>
+              <h2 id="preview-heading">How it looks</h2>
             </div>
           </div>
           <div
@@ -293,12 +294,6 @@ export function MarkdownEditor({
       </aside>
     </div>
   );
-}
-
-function statusLabel(status: string) {
-  if (status === 'unmodified') return 'Unmodified';
-  if (status === 'committed') return 'Ready to commit';
-  return 'Draft';
 }
 
 function autosaveLabel(state: AutosaveState) {

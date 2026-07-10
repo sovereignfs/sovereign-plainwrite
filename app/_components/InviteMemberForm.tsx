@@ -62,7 +62,7 @@ export function InviteMemberForm({
   return (
     <form ref={formRef} action={formAction} className={styles.inlineForm}>
       <input type="hidden" name="userId" value={selected?.id ?? ''} />
-      <FormField label="Member" hint={selected ? undefined : 'Search by name or email'}>
+      <FormField label="Person" hint={selected ? undefined : 'Search by name or email'}>
         {(field) => (
           <div className={styles.memberPicker}>
             <Input
@@ -99,8 +99,8 @@ export function InviteMemberForm({
       <FormField label="Role">
         {(field) => (
           <Select {...field} name="role" defaultValue="viewer">
-            <option value="viewer">Viewer</option>
-            <option value="editor">Editor</option>
+            <option value="viewer">Reader</option>
+            <option value="editor">Writer</option>
             <option value="owner">Owner</option>
           </Select>
         )}
@@ -111,7 +111,7 @@ export function InviteMemberForm({
         </p>
       ) : null}
       <Button type="submit" disabled={!selected || pending}>
-        {pending ? 'Adding…' : 'Add member'}
+        {pending ? 'Adding…' : 'Add person'}
       </Button>
     </form>
   );

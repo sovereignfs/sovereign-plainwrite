@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Badge, EmptyState, PageHeader, StatusBadge } from '@sovereignfs/ui';
 import { NewProjectDialog } from './_components/NewProjectDialog';
 import { listProjects } from './_lib/actions';
+import { formatProjectRole } from './_lib/copy';
 import styles from './page.module.css';
 
 export default async function ProjectsPage() {
@@ -14,8 +15,8 @@ export default async function ProjectsPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Projects"
-        description="Connect static site repositories and manage Markdown content."
+        title="Your sites"
+        description="Write and publish content for your sites."
         action={
           <div className={styles.headerActions}>
             <Badge variant="status" status="neutral">
@@ -29,8 +30,8 @@ export default async function ProjectsPage() {
       {projects.length === 0 ? (
         <EmptyState
           icon="pencil"
-          heading="No active projects"
-          description="Create a project to connect a GitHub repository and start managing static site content."
+          heading="Connect your first site"
+          description="Plainwrite turns your website's content into a simple writing space. Connect a site to start writing and publishing."
         />
       ) : (
         <section className={styles.projectList} aria-label="Active projects">
@@ -42,7 +43,7 @@ export default async function ProjectsPage() {
                   {project.repoOwner}/{project.repoName} · {project.branch} · {project.pathPrefix}
                 </p>
               </div>
-              <StatusBadge status="unmodified">{project.currentUserRole}</StatusBadge>
+              <StatusBadge status="unmodified">{formatProjectRole(project.currentUserRole)}</StatusBadge>
             </Link>
           ))}
         </section>

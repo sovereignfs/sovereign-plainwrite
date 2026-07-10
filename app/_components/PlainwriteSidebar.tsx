@@ -33,7 +33,7 @@ export function PlainwriteSidebar() {
         </span>
         <div>
           <p className={styles.kicker}>Plainwrite</p>
-          <h1 className={styles.title}>{state.projectId ? 'Workspace' : 'Content'}</h1>
+          <h1 className={styles.title}>{state.projectId ? 'Workspace' : 'Sites'}</h1>
         </div>
       </div>
 
@@ -46,7 +46,7 @@ function ProjectsNav() {
   return (
     <nav className={styles.nav} aria-label="Plainwrite sections">
       <Link href="/plainwrite" className={styles.active} aria-current="page">
-        Projects
+        Sites
       </Link>
     </nav>
   );
@@ -65,11 +65,11 @@ function ProjectNav({
   return (
     <div className={styles.projectNav}>
       <Link href="/plainwrite" className={styles.backLink}>
-        Back to projects
+        Back to sites
       </Link>
 
       <div className={styles.projectCard}>
-        <p className={styles.kicker}>Current project</p>
+        <p className={styles.kicker}>Current site</p>
         <strong>{project?.name ?? shortProjectId(state.projectId)}</strong>
         {project ? (
           <span>
@@ -84,7 +84,7 @@ function ProjectNav({
           className={state.section === 'content' ? styles.active : undefined}
           aria-current={state.section === 'content' ? 'page' : undefined}
         >
-          Content
+          Posts
         </Link>
         <Link
           href={settingsHref}
@@ -97,7 +97,7 @@ function ProjectNav({
 
       {state.section === 'editor' && state.filePath ? (
         <div className={styles.fileCard}>
-          <p className={styles.kicker}>Open file</p>
+          <p className={styles.kicker}>Editing</p>
           <strong>{state.filePath}</strong>
         </div>
       ) : null}
@@ -149,7 +149,7 @@ function useSidebarState(pathname: string | null): SidebarState {
 }
 
 function shortProjectId(projectId: string | null) {
-  if (!projectId) return 'Project';
+  if (!projectId) return 'Site';
   return projectId.length > 12 ? `${projectId.slice(0, 8)}...` : projectId;
 }
 

@@ -37,23 +37,23 @@ export default async function EditorPage({ params }: EditorPageProps) {
       {editor.loadError ? (
         <section className={styles.toolbar} role="alert">
           <div>
-            <p className={styles.eyebrow}>Couldn&apos;t load this file</p>
+            <p className={styles.eyebrow}>Couldn&apos;t load this post</p>
             <p>{editor.loadError}</p>
           </div>
           <div className={styles.toolbarActions}>
             <Link href={`/plainwrite/${projectId}/editor/${path}`}>Retry</Link>
-            <Link href={`/plainwrite/${projectId}`}>Project dashboard</Link>
+            <Link href={`/plainwrite/${projectId}`}>Back to posts</Link>
           </div>
         </section>
       ) : (
         <>
           <section className={styles.toolbar} aria-label="Editor actions">
             <div>
-              <p className={styles.eyebrow}>Base revision</p>
-              <p>{editor.baseSha ?? 'New file'}</p>
+              <p className={styles.eyebrow}>Status</p>
+              <p>{editor.baseSha ? 'Synced from your site' : 'New post — not on your site yet'}</p>
             </div>
             <div className={styles.toolbarActions}>
-              <Link href={`/plainwrite/${projectId}`}>Project dashboard</Link>
+              <Link href={`/plainwrite/${projectId}`}>Back to posts</Link>
             </div>
           </section>
 

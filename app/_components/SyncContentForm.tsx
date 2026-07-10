@@ -20,7 +20,7 @@ export function SyncContentForm({
         </p>
       ) : null}
       <Button type="submit" disabled={pending}>
-        {pending ? 'Syncing…' : 'Sync content'}
+        {pending ? 'Checking…' : 'Check for updates'}
       </Button>
     </form>
   );

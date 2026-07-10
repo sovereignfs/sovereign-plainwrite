@@ -16,6 +16,7 @@ import {
   updateCollectionSchema,
   updateProjectSettings,
 } from '../../_lib/actions';
+import { formatProjectRole } from '../../_lib/copy';
 import { canEditProject, canManageProject } from '../../_lib/project-rules';
 import { FormCheckbox } from '../../_components/FormCheckbox';
 import { InviteMemberForm } from '../../_components/InviteMemberForm';
@@ -39,17 +40,17 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Project settings"
-        description={`Membership and repository settings for ${project.name}.`}
+        title="Site settings"
+        description={`People and site settings for ${project.name}.`}
         action={
           <Badge variant="status" status={userCanManage ? 'active' : 'neutral'}>
-            {project.currentUserRole}
+            {formatProjectRole(project.currentUserRole)}
           </Badge>
         }
       />
 
       <section className={styles.panel} aria-labelledby="repository-settings">
-        <h2 id="repository-settings">Repository</h2>
+        <h2 id="repository-settings">Where your site lives</h2>
         <form action={updateProjectSettings.bind(null, project.id)} className={styles.form}>
           <FormField label="Name">
             {(field) => (
@@ -96,7 +97,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                 </Select>
               )}
             </FormField>
-            <FormField label="Metadata">
+            <FormField label="Who can see this info">
               {(field) => (
                 <Select
                   {...field}
@@ -104,8 +105,8 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                   defaultValue={project.metadataVisibility}
                   disabled={!userCanManage}
                 >
-                  <option value="members_with_credentials">Members with credentials</option>
-                  <option value="all_members">All members</option>
+                  <option value="members_with_credentials">People with publishing access</option>
+                  <option value="all_members">Everyone with access</option>
                 </Select>
               )}
             </FormField>
@@ -114,7 +115,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
             name="isPrivate"
             defaultChecked={project.isPrivate}
             disabled={!userCanManage}
-            label="Private repository"
+            label="Private site"
           />
           {userCanManage ? <Button type="submit">Save settings</Button> : null}
         </form>
@@ -123,9 +124,9 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
       <section className={styles.panel} aria-labelledby="github-credential">
         <div className={styles.panelHeader}>
           <div>
-            <h2 id="github-credential">GitHub credential</h2>
+            <h2 id="github-credential">Publishing access</h2>
             <p className={styles.panelDescription}>
-              Connect GitHub OAuth when configured, or use a personal access token fallback.
+              Connect access so Plainwrite can publish to your site.
             </p>
           </div>
           <StatusBadge status={project.credential?.status === 'connected' ? 'synced' : 'warning'}>
@@ -199,7 +200,9 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                 secret vault and is never saved in Plainwrite tables.
               </p>
               <Button type="submit">
-                {project.credential?.status === 'connected' ? 'Reconnect token' : 'Connect token'}
+                {project.credential?.status === 'connected'
+                  ? 'Reconnect using a token'
+                  : 'Connect using a token'}
               </Button>
             </form>
 
@@ -212,20 +215,20 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
             ) : null}
           </div>
         ) : (
-          <p className={styles.helpText}>Viewers cannot connect publishing credentials.</p>
+          <p className={styles.helpText}>Readers can&apos;t connect publishing access.</p>
         )}
       </section>
 
       <section className={styles.panel} aria-labelledby="collection-schemas">
         <div className={styles.panelHeader}>
           <div>
-            <h2 id="collection-schemas">Collection schemas</h2>
+            <h2 id="collection-schemas">Content fields</h2>
             <p className={styles.panelDescription}>
-              Inferred frontmatter fields stay editable by project owners.
+              Fields detected in your posts — owners can edit them.
             </p>
           </div>
           <StatusBadge status={schemas.length > 0 ? 'synced' : 'warning'}>
-            {schemas.length > 0 ? `${schemas.length} collections` : 'Not inferred'}
+            {schemas.length > 0 ? `${schemas.length} sections` : 'Not detected yet'}
           </StatusBadge>
         </div>
 
@@ -241,7 +244,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                   <div>
                     <h3>{schema.collection}</h3>
                     <p className={styles.panelDescription}>
-                      {schema.isManual ? 'Manual schema' : 'Inferred schema'}
+                      {schema.isManual ? 'Set manually' : 'Detected automatically'}
                     </p>
                   </div>
                   {userCanManage ? (
@@ -300,19 +303,20 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
             ))}
           </div>
         ) : (
-          <p className={styles.helpText}>Run content sync to infer schemas from existing files.</p>
+          <p className={styles.helpText}>
+            Check for site updates to detect fields from existing posts.
+          </p>
         )}
       </section>
 
       <section className={styles.panel} aria-labelledby="members">
         <div className={styles.panelHeader}>
-          <h2 id="members">Members</h2>
+          <h2 id="members">People</h2>
           <StatusBadge status="unmodified">{project.members.length} total</StatusBadge>
         </div>
         {project.directoryLookupFailed ? (
           <p className={styles.errorText}>
-            Could not load member display names and emails from the platform directory. Showing
-            user IDs only.
+            Couldn&apos;t load names and emails right now. Showing IDs only.
           </p>
         ) : null}
         <div className={styles.members}>
@@ -322,7 +326,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                 <strong>{member.displayName ?? member.email ?? member.userId}</strong>
                 <p>{member.email ?? member.userId}</p>
               </div>
-              <StatusBadge status="unmodified">{member.role}</StatusBadge>
+              <StatusBadge status="unmodified">{formatProjectRole(member.role)}</StatusBadge>
               {userCanManage ? (
                 <form action={removeProjectMember.bind(null, project.id, member.userId)}>
                   <Button type="submit">Remove</Button>
@@ -338,15 +342,15 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
 
       {userCanManage ? (
         <section className={styles.panel} aria-labelledby="danger-zone">
-          <h2 id="danger-zone">Project state</h2>
+          <h2 id="danger-zone">Site status</h2>
           <div className={styles.actions}>
             {project.archivedAt ? (
               <form action={restoreProject.bind(null, project.id)}>
-                <Button type="submit">Restore project</Button>
+                <Button type="submit">Restore site</Button>
               </form>
             ) : (
               <form action={archiveProject.bind(null, project.id)}>
-                <Button type="submit">Archive project</Button>
+                <Button type="submit">Archive site</Button>
               </form>
             )}
             <form action={hardDeleteProject.bind(null, project.id)} className={styles.deleteForm}>

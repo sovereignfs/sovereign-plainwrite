@@ -13,6 +13,7 @@ import {
 import { PublishAllForm } from '../_components/PublishAllForm';
 import { SyncContentForm } from '../_components/SyncContentForm';
 import { groupContentFiles } from '../_lib/content-rules';
+import { formatMetadataVisibility, formatPostStatus, formatProjectRole } from '../_lib/copy';
 import { canEditProject, canManageProject } from '../_lib/project-rules';
 import styles from './page.module.css';
 
@@ -44,7 +45,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         description={`${repositoryLabel} · ${project.branch} · ${project.pathPrefix}`}
         action={
           <StatusBadge status={project.archivedAt ? 'conflict' : 'unmodified'}>
-            {project.currentUserRole}
+            {formatProjectRole(project.currentUserRole)}
           </StatusBadge>
         }
       />
@@ -53,7 +54,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         <Card className={styles.primaryCard} padding="lg">
           <div className={styles.cardHeader}>
             <div>
-              <p className={styles.eyebrow}>Repository</p>
+              <p className={styles.eyebrow}>Site</p>
               <h2>{repositoryLabel}</h2>
             </div>
             <StatusBadge status={project.archivedAt ? 'conflict' : 'unmodified'}>
@@ -74,15 +75,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               <dd>{project.ssgType}</dd>
             </div>
             <div>
-              <dt>Repository visibility</dt>
+              <dt>Visibility</dt>
               <dd>{project.isPrivate ? 'Private' : 'Public'}</dd>
             </div>
             <div>
-              <dt>Metadata visibility</dt>
+              <dt>Who can see this info</dt>
               <dd>{metadataLabel}</dd>
             </div>
             <div>
-              <dt>Members</dt>
+              <dt>People</dt>
               <dd>{project.members.length}</dd>
             </div>
           </dl>
@@ -92,22 +93,22 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           <div className={styles.cardHeader}>
             <div>
               <p className={styles.eyebrow}>Setup</p>
-              <h2>Ready for content sync</h2>
+              <h2>Getting your site ready</h2>
             </div>
             <StatusBadge status="warning">Pending</StatusBadge>
           </div>
           <ol className={styles.checklist}>
             <li>
               <span className={styles.doneDot} aria-hidden="true" />
-              Project and membership created
+              Site connected
             </li>
             <li>
               <span className={contentFiles.length > 0 ? styles.doneDot : styles.pendingDot} aria-hidden="true" />
-              {contentFiles.length > 0 ? `${contentFiles.length} content files cached` : 'Content files not synced yet'}
+              {contentFiles.length > 0 ? `${contentFiles.length} posts found` : 'Posts not loaded yet'}
             </li>
             <li>
               <span className={styles.pendingDot} aria-hidden="true" />
-              Git credentials not connected yet for private repositories
+              Publishing access not connected yet for private sites
             </li>
           </ol>
         </Card>
@@ -116,7 +117,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       <section className={styles.actionsPanel} aria-label="Project actions">
         <div>
           <h2>Next actions</h2>
-          <p>Sync repository content, create a local draft, or manage project access.</p>
+          <p>Check for site updates, write a new post, or manage who can write here.</p>
         </div>
         <div className={styles.actions}>
           {userCanEdit ? <SyncContentForm action={syncProjectContent.bind(null, projectId)} /> : null}
@@ -127,7 +128,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             />
           ) : null}
           <Link href={`/plainwrite/${projectId}/settings`}>
-            {userCanManage ? 'Manage project' : 'View settings'}
+            {userCanManage ? 'Manage site' : 'View settings'}
           </Link>
         </div>
       </section>
@@ -135,20 +136,20 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       {userCanEdit ? (
         <section className={styles.newFilePanel} aria-labelledby="new-file">
           <div>
-            <h2 id="new-file">New content file</h2>
+            <h2 id="new-file">New post</h2>
             <p>
-              Create a local draft under <strong>{project.pathPrefix}</strong>. Saving stores it in
-              Plainwrite until publishing is connected.
+              Write a new post in <strong>{project.pathPrefix}</strong>. It stays private until you
+              publish it.
             </p>
           </div>
           <form className={styles.newFileForm} action={createContentFile.bind(null, projectId)}>
-            <FormField label="Collection">
+            <FormField label="Section">
               {(field) => <Input {...field} name="collection" placeholder="blog" />}
             </FormField>
             <FormField label="Filename">
               {(field) => <Input {...field} name="filename" placeholder="hello-world.md" required />}
             </FormField>
-            <Button type="submit">Create file</Button>
+            <Button type="submit">Create post</Button>
           </form>
         </section>
       ) : null}
@@ -156,13 +157,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       <section className={styles.contentPanel} aria-labelledby="content-files">
         <div className={styles.cardHeader}>
           <div>
-            <h2 id="content-files">Content files</h2>
+            <h2 id="content-files">Posts</h2>
             <p>
-              Markdown and MDX files under <strong>{project.pathPrefix}</strong>.
+              Everything in <strong>{project.pathPrefix}</strong>.
             </p>
           </div>
           <StatusBadge status={contentFiles.length > 0 ? 'synced' : 'warning'}>
-            {contentFiles.length > 0 ? `${contentFiles.length} files` : 'Not synced'}
+            {contentFiles.length > 0 ? `${contentFiles.length} posts` : 'Not loaded yet'}
           </StatusBadge>
         </div>
         {contentSyncError ? <p className={styles.syncWarning}>{contentSyncError}</p> : null}
@@ -178,11 +179,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                         {file.filename}
                       </Link>
                       <div className={styles.fileActions}>
-                        <StatusBadge status={file.status}>{formatFileStatus(file.status)}</StatusBadge>
+                        <StatusBadge status={file.status}>{formatPostStatus(file.status)}</StatusBadge>
                         {userCanEdit ? (
                           <form action={stageContentDeletion.bind(null, projectId, file.path)}>
                             <Button type="submit" variant="secondary" disabled={file.status === 'pending-delete'}>
-                              Delete
+                              Remove
                             </Button>
                           </form>
                         ) : null}
@@ -195,8 +196,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </div>
         ) : (
           <p className={styles.emptyText}>
-            Run sync to fetch repository content. Private repositories need a connected GitHub
-            credential in project settings before content can sync.
+            Check for site updates to load your posts. Private sites need publishing access
+            connected in settings first.
           </p>
         )}
       </section>
@@ -204,23 +205,23 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       <section className={styles.grid} aria-label="Project work areas">
         <DashboardCard
           title="Content"
-          status={contentFiles.length > 0 ? `${contentFiles.length} files` : 'Pending sync'}
-          description="Collections and Markdown files appear here after GitHub tree sync."
+          status={contentFiles.length > 0 ? `${contentFiles.length} posts` : 'Not loaded yet'}
+          description="Your posts and sections appear here once loaded from your site."
         />
         <DashboardCard
-          title="Drafts"
-          status={draftCount > 0 ? `${draftCount} in progress` : 'No drafts yet'}
-          description="Local edits you've saved but not marked ready to commit."
+          title="Writing"
+          status={draftCount > 0 ? `${draftCount} in progress` : 'Nothing in progress'}
+          description="Posts you're still working on — only you can see these."
         />
         <DashboardCard
-          title="Publishing"
-          status={committedCount > 0 ? `${committedCount} committed` : 'No committed drafts'}
-          description="Publish all creates one validated commit for committed edits and staged deletions."
+          title="Ready to publish"
+          status={committedCount > 0 ? `${committedCount} ready` : 'Nothing ready yet'}
+          description="Posts marked ready go live together the next time you publish."
         />
         <DashboardCard
-          title="Members"
+          title="People"
           status={`${project.members.length} total`}
-          description="Owners manage project access from settings."
+          description="Owners manage who can write here from settings."
           href={`/plainwrite/${projectId}/settings`}
         />
       </section>
@@ -228,11 +229,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       <section className={styles.contentPanel} aria-labelledby="publish-events">
         <div className={styles.cardHeader}>
           <div>
-            <h2 id="publish-events">Publish events</h2>
-            <p>Recent single-file publish attempts for this project.</p>
+            <h2 id="publish-events">Publish history</h2>
+            <p>Recent times posts went live on your site.</p>
           </div>
           <StatusBadge status={publishEvents.length > 0 ? 'synced' : 'unmodified'}>
-            {publishEvents.length > 0 ? `${publishEvents.length} recent` : 'No events'}
+            {publishEvents.length > 0 ? `${publishEvents.length} recent` : 'No history yet'}
           </StatusBadge>
         </div>
         {publishEvents.length > 0 ? (
@@ -241,12 +242,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               <article key={event.id} className={styles.eventRow}>
                 <div>
                   <h3>{event.message}</h3>
-                  <p>{event.files.join(', ') || 'No files recorded'}</p>
+                  <p>{event.files.join(', ') || 'No posts recorded'}</p>
                   {event.errorSummary ? <p>{event.errorSummary}</p> : null}
                 </div>
                 <div className={styles.eventMeta}>
                   <StatusBadge status={event.status === 'success' ? 'synced' : 'error'}>
-                    {event.status === 'success' ? 'Published' : event.errorCode || 'Failed'}
+                    {event.status === 'success' ? 'Live' : event.errorCode || 'Failed'}
                   </StatusBadge>
                   <span>{formatEventDate(event.createdAt)}</span>
                   {event.commitSha ? <code>{event.commitSha.slice(0, 7)}</code> : null}
@@ -255,7 +256,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             ))}
           </div>
         ) : (
-          <p className={styles.emptyText}>Publish a committed draft to create the first audit event.</p>
+          <p className={styles.emptyText}>Publish a ready post to see history here.</p>
         )}
       </section>
     </div>
@@ -292,17 +293,6 @@ function DashboardCard({
   }
 
   return <Card>{content}</Card>;
-}
-
-function formatMetadataVisibility(value: string) {
-  if (value === 'members_with_credentials') return 'Members with credentials';
-  if (value === 'all_members') return 'All project members';
-  return value;
-}
-
-function formatFileStatus(status: string) {
-  if (status === 'pending-delete') return 'Pending delete';
-  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 function formatEventDate(value: number) {

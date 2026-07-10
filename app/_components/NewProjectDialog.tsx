@@ -37,9 +37,9 @@ export function NewProjectDialog() {
   return (
     <>
       <Button type="button" onClick={() => setOpen(true)}>
-        New project
+        Connect a site
       </Button>
-      <Dialog open={open} onClose={handleDismissRequest} size="md" title="New project">
+      <Dialog open={open} onClose={handleDismissRequest} size="md" title="Connect a site">
         <form
           ref={formRef}
           action={createProject}
@@ -47,14 +47,14 @@ export function NewProjectDialog() {
           onChange={() => setDirty(true)}
         >
           <div className={styles.header}>
-            <h2>New project</h2>
-            <p>Connect a GitHub repository that stores Astro content.</p>
+            <h2>Connect a site</h2>
+            <p>Point Plainwrite at the GitHub repository that stores your site's content.</p>
           </div>
-          <FormField label="Name" required>
+          <FormField label="Site name" required>
             {(field) => <Input {...field} name="name" required placeholder="Company blog" />}
           </FormField>
           <FormField
-            label="Repository URL"
+            label="GitHub repository"
             required
             hint="Supports GitHub HTTPS and SSH repository URLs."
           >
@@ -77,7 +77,7 @@ export function NewProjectDialog() {
               />
             )}
           </FormField>
-          <h3 className={styles.sectionTitle}>Content location</h3>
+          <h3 className={styles.sectionTitle}>Where your content lives</h3>
           <div className={styles.grid}>
             <FormField label="Branch">
               {(field) => <Input {...field} name="branch" defaultValue="main" />}
@@ -94,14 +94,14 @@ export function NewProjectDialog() {
             )}
           </FormField>
           <FormField
-            label="Repository metadata visibility"
-            hint="Private repositories default to members with credentials."
+            label="Who can see this info"
+            hint="Private sites default to people with publishing access."
           >
             {(field) => (
               <Select {...field} name="metadataVisibility" defaultValue="">
-                <option value="">Default by repository privacy</option>
-                <option value="members_with_credentials">Members with credentials</option>
-                <option value="all_members">All project members</option>
+                <option value="">Default based on privacy</option>
+                <option value="members_with_credentials">People with publishing access</option>
+                <option value="all_members">Everyone with access</option>
               </Select>
             )}
           </FormField>
@@ -109,19 +109,19 @@ export function NewProjectDialog() {
             name="isPrivate"
             checked={isPrivate}
             onChange={setIsPrivate}
-            label="Private repository"
+            label="Private site"
           />
           <div className={styles.actions}>
             <Button type="button" variant="secondary" onClick={handleDismissRequest}>
               Cancel
             </Button>
-            <Button type="submit">Create project</Button>
+            <Button type="submit">Connect site</Button>
           </div>
         </form>
       </Dialog>
       <ConfirmDialog
         open={discardConfirmOpen}
-        title="Discard new project?"
+        title="Discard this site?"
         message="The details you've entered will be lost."
         confirmLabel="Discard"
         onCancel={() => setDiscardConfirmOpen(false)}
