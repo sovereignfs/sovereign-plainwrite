@@ -240,8 +240,8 @@ export function MarkdownEditor({
 
   return (
     <div className={styles.shell}>
-      <section className={styles.actionBar} aria-label="Publish controls">
-        <div className={styles.actionBarStatus}>
+      <section className={styles.currentState} aria-label="Publish controls">
+        <div className={styles.currentStateHead}>
           <p className={styles.eyebrow}>Current state</p>
           <h2>{editorStatusLabel(status, baseSha)}</h2>
           <p className={styles.statusHint}>Changes stay private until you publish them.</p>
@@ -253,7 +253,7 @@ export function MarkdownEditor({
         </div>
 
         {userCanEdit ? (
-          <div className={styles.actionBarControls}>
+          <>
             <div className={styles.actions}>
               <Button type="submit" form="plainwrite-editor-form">
                 Save
@@ -299,7 +299,7 @@ export function MarkdownEditor({
                 Discard changes
               </Button>
             </div>
-          </div>
+          </>
         ) : null}
 
         {publishState && !publishState.ok ? (
@@ -320,51 +320,12 @@ export function MarkdownEditor({
 
       <form
         id="plainwrite-editor-form"
-        className={styles.editorForm}
+        className={styles.formContents}
         action={saveAction}
         onSubmit={() => setLastSaved({ frontmatterYaml, body })}
       >
         <input type="hidden" name="baseSha" value={baseSha ?? ''} />
         <input type="hidden" name="content" value={serializedContent} />
-
-        <section className={styles.frontmatterPanel} aria-labelledby="frontmatter-heading">
-          <div className={styles.sectionHeader}>
-            <div>
-              <p className={styles.eyebrow}>Metadata</p>
-              <h2 id="frontmatter-heading">Details</h2>
-            </div>
-            {schemaFields.length > 0 ? (
-              <SegmentedControl
-                aria-label="Details editing mode"
-                value={mode}
-                onChange={handleModeChange}
-                options={[
-                  { label: 'Structured', value: 'structured' },
-                  { label: 'Raw text', value: 'raw' },
-                ]}
-                size="sm"
-              />
-            ) : (
-              <span>{frontmatterYaml.trim() ? 'Details added' : 'No details yet'}</span>
-            )}
-          </div>
-          {mode === 'structured' && schemaFields.length > 0 ? (
-            <StructuredFrontmatterFields
-              fields={schemaFields}
-              data={fieldData}
-              onFieldChange={handleFieldChange}
-              disabled={!userCanEdit}
-            />
-          ) : (
-            <CodeTextarea
-              aria-label="Raw text details"
-              value={frontmatterYaml}
-              onChange={(event) => setFrontmatterYaml(event.currentTarget.value)}
-              rows={8}
-              readOnly={!userCanEdit}
-            />
-          )}
-        </section>
 
         <section className={styles.bodyPanel} aria-labelledby="body-heading">
           <div className={styles.sectionHeader}>
@@ -436,6 +397,45 @@ export function MarkdownEditor({
             <div
               className={styles.preview}
               dangerouslySetInnerHTML={{ __html: previewHtml || '<p>Nothing to preview yet.</p>' }}
+            />
+          )}
+        </section>
+
+        <section className={styles.frontmatterPanel} aria-labelledby="frontmatter-heading">
+          <div className={styles.sectionHeader}>
+            <div>
+              <p className={styles.eyebrow}>Metadata</p>
+              <h2 id="frontmatter-heading">Details</h2>
+            </div>
+            {schemaFields.length > 0 ? (
+              <SegmentedControl
+                aria-label="Details editing mode"
+                value={mode}
+                onChange={handleModeChange}
+                options={[
+                  { label: 'Structured', value: 'structured' },
+                  { label: 'Raw text', value: 'raw' },
+                ]}
+                size="sm"
+              />
+            ) : (
+              <span>{frontmatterYaml.trim() ? 'Details added' : 'No details yet'}</span>
+            )}
+          </div>
+          {mode === 'structured' && schemaFields.length > 0 ? (
+            <StructuredFrontmatterFields
+              fields={schemaFields}
+              data={fieldData}
+              onFieldChange={handleFieldChange}
+              disabled={!userCanEdit}
+            />
+          ) : (
+            <CodeTextarea
+              aria-label="Raw text details"
+              value={frontmatterYaml}
+              onChange={(event) => setFrontmatterYaml(event.currentTarget.value)}
+              rows={8}
+              readOnly={!userCanEdit}
             />
           )}
         </section>

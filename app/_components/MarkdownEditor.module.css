@@ -1,29 +1,52 @@
+/* Two-column editor: the writing canvas (Post) fills the bigger left column;
+   the right column stacks the publish controls (Current state) over the
+   post's Metadata. The <form> is display:contents so its children (the two
+   hidden inputs + the panels it wraps) participate directly in this grid —
+   hidden inputs are UA display:none, so they never create a phantom row. */
 .shell {
   display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+  align-items: start;
   gap: var(--sv-space-5);
 }
 
-/* Publish controls — a horizontal bar above the editor (status on the left,
-   actions on the right) rather than the tall right-hand column it used to be. */
-.actionBar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sv-space-4);
+.formContents {
+  display: contents;
+}
+
+.bodyPanel {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.currentState {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.frontmatterPanel {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.currentState,
+.frontmatterPanel,
+.bodyPanel {
+  display: grid;
+  gap: var(--sv-space-3);
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
   background: var(--sv-color-surface);
   padding: var(--sv-space-4);
 }
 
-.actionBarStatus {
+.currentStateHead {
   display: grid;
   gap: var(--sv-space-1);
-  min-width: 0;
 }
 
-.actionBarStatus h2 {
+.currentStateHead h2 {
   margin: 0;
   font-size: var(--sv-font-size-lg);
 }
@@ -39,24 +62,15 @@
   color: var(--sv-color-warning-text);
 }
 
-.actionBarControls {
-  display: grid;
-  gap: var(--sv-space-3);
-  flex: 1 1 320px;
-  max-width: 440px;
-}
-
 .actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--sv-space-2);
-  justify-content: flex-end;
 }
 
-/* The Publish button lives in its own <form>; display:contents lets it sit in
-   the flex row alongside Save / Ready to publish as an equal sibling. */
+/* The Publish button lives in its own <form>; make that form a grid so the
+   button stretches to full width like the Save / Ready to publish buttons. */
 .actions form {
-  display: contents;
+  display: grid;
 }
 
 .discardRow {
@@ -67,7 +81,6 @@
 .feedbackError {
   display: grid;
   gap: var(--sv-space-1);
-  flex: 1 1 100%;
   font-size: var(--sv-font-size-sm);
   padding: var(--sv-space-2) var(--sv-space-3);
   border-radius: var(--sv-radius-md);
@@ -89,21 +102,6 @@
   justify-self: start;
   padding: 0;
   text-decoration: underline;
-}
-
-.editorForm {
-  display: grid;
-  gap: var(--sv-space-4);
-}
-
-.frontmatterPanel,
-.bodyPanel {
-  display: grid;
-  gap: var(--sv-space-3);
-  border: 1px solid var(--sv-color-border);
-  border-radius: var(--sv-radius-md);
-  background: var(--sv-color-surface);
-  padding: var(--sv-space-4);
 }
 
 .sectionHeader {
@@ -173,25 +171,27 @@
   padding: 0 var(--sv-space-1);
 }
 
-/* 768px matches the platform's canonical mobile breakpoint
-   (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile), not a plugin-local
-   guess — see docs/adhoc/plainwrite-code-review-and-fix-plan.md P3-3. */
+/* Collapse the two columns below 960px — a layout-density threshold, not the
+   768 mobile breakpoint: below ~960 the writing column drops under ~430px and
+   a single stacked column reads far better than two cramped ones. When
+   stacked, source order (Current state → Post → Details) drives the vertical
+   flow, so the publish controls stay reachable up top. */
+@media (max-width: 960px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .bodyPanel,
+  .currentState,
+  .frontmatterPanel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+/* 768px is the platform's canonical mobile breakpoint
+   (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile). */
 @media (max-width: 768px) {
-  .actionBar {
-    flex-direction: column;
-  }
-
-  .actionBarControls {
-    max-width: none;
-  }
-
-  /* Stacked full-width, the controls read cleaner left-aligned than
-     right-floated (which leaves a ragged left edge against the status text). */
-  .actions,
-  .discardRow {
-    justify-content: flex-start;
-  }
-
   .sectionHeader {
     flex-direction: column;
   }

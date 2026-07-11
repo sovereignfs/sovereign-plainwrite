@@ -1411,6 +1411,50 @@ Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
 `pnpm format:check`, and a full `pnpm build` all pass. Live-verified across
 desktop and mobile (see above).
 
+### ✅ PLW-028 Two-Column Editor (Writing Canvas + Inspector)
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` §4 (editor screens).
+
+**Status:** ✅ Complete. Supersedes PLW-027's top-bar arrangement per
+developer preference.
+
+PLW-027 moved the editor's controls into a top action bar (single column).
+On review the developer preferred a two-column "writing canvas + inspector"
+layout — a well-established editor pattern that also fixes something the top
+bar didn't: the actual writing area is visible immediately instead of being
+pushed below the status/controls. Left column (bigger) is the Post editor;
+the right column stacks Current state (publish controls) over the post's
+Metadata. This is a deliberate deviation from the wireframe's single-column
+top-bar sketch.
+
+Progress as of 2026-07-11:
+
+- [x] `MarkdownEditor` is now a two-column grid inside the same
+  `max-width: 1040px` page as the other screens: left `1.5fr` (the Post
+  editor, spanning both rows), right `1fr` stacking Current state (row 1)
+  over Details/Metadata (row 2). Measured 612px / 408px at full width — the
+  writing column is properly the bigger one.
+- [x] The `<form>` is `display: contents` so the two hidden inputs and the
+  panels it wraps participate directly in the grid; hidden inputs are UA
+  `display:none` so they never create a phantom grid row. The Save / Ready
+  to publish buttons and the change note keep `form="plainwrite-editor-form"`
+  and still submit correctly despite the form box being removed — verified
+  live end-to-end (manual Save → `POST … → 200`).
+- [x] Current state is a vertical publish box: Save / Ready to publish /
+  Publish stacked full-width (good touch targets), then change note, then
+  Discard.
+- [x] Columns collapse to a single stack below **960px** — a layout-density
+  threshold (not the 768 mobile breakpoint), since below ~960 the writing
+  column drops under ~430px and one comfortable column beats two cramped
+  ones. Stacked source order is Current state → Post → Details, so publish
+  controls stay reachable up top.
+- [x] Live-verified at 1440 (two columns, left bigger), 900 (single stack),
+  and 375 (mobile) — form/Save working, zero console errors.
+
+Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
+`pnpm format:check`, and a full `pnpm build` all pass. Live-verified across
+three widths (see above).
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.
