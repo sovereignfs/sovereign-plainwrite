@@ -1,6 +1,8 @@
 .page {
   display: grid;
   gap: var(--sv-space-5);
+  margin-inline: auto;
+  max-width: 1040px;
   min-height: 100%;
 }
 

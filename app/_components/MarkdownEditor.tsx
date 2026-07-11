@@ -240,6 +240,84 @@ export function MarkdownEditor({
 
   return (
     <div className={styles.shell}>
+      <section className={styles.actionBar} aria-label="Publish controls">
+        <div className={styles.actionBarStatus}>
+          <p className={styles.eyebrow}>Current state</p>
+          <h2>{editorStatusLabel(status, baseSha)}</h2>
+          <p className={styles.statusHint}>Changes stay private until you publish them.</p>
+          {userCanEdit && autosaveState !== 'idle' ? (
+            <p className={styles.autosaveStatus} role={autosaveState === 'error' ? 'alert' : undefined}>
+              {autosaveLabel(autosaveState)}
+            </p>
+          ) : null}
+        </div>
+
+        {userCanEdit ? (
+          <div className={styles.actionBarControls}>
+            <div className={styles.actions}>
+              <Button type="submit" form="plainwrite-editor-form">
+                Save
+              </Button>
+              <Button
+                type="submit"
+                form="plainwrite-editor-form"
+                formAction={commitAction}
+                variant="secondary"
+              >
+                Ready to publish
+              </Button>
+              <form action={publishFormAction}>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={status !== 'committed' || publishPending}
+                >
+                  {publishPending ? 'Publishing…' : 'Publish'}
+                </Button>
+              </form>
+            </div>
+            <FormField label="Change note" id="commitMessage">
+              {(field) => (
+                <Input
+                  {...field}
+                  form="plainwrite-editor-form"
+                  name="commitMessage"
+                  value={message}
+                  onChange={(event) => setMessage(event.currentTarget.value)}
+                  disabled={!userCanEdit}
+                />
+              )}
+            </FormField>
+            <div className={styles.discardRow}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={status === 'unmodified'}
+                onClick={() => setDiscardConfirmOpen(true)}
+              >
+                Discard changes
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {publishState && !publishState.ok ? (
+          <div className={styles.feedbackError} role="status" aria-live="polite">
+            <p>{publishState.error}</p>
+            {isConflictError(publishState.error) ? (
+              <button
+                type="button"
+                className={styles.reviewChangesLink}
+                onClick={() => setConflictReviewOpen(true)}
+              >
+                Review changes
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
       <form
         id="plainwrite-editor-form"
         className={styles.editorForm}
@@ -330,7 +408,6 @@ export function MarkdownEditor({
                   </Button>
                 </>
               ) : null}
-              <span>{editorStatusLabel(status, baseSha)}</span>
             </div>
           </div>
           {imageUploadError ? <p className={styles.imageUploadError}>{imageUploadError}</p> : null}
@@ -364,105 +441,30 @@ export function MarkdownEditor({
         </section>
       </form>
 
-      <aside className={styles.sidePanel} aria-label="Post controls and preview">
-        <section className={styles.commitPanel} aria-labelledby="commit-heading">
-          <div>
-            <p className={styles.eyebrow}>Current state</p>
-            <h2 id="commit-heading">{editorStatusLabel(status, baseSha)}</h2>
-            <p>Changes stay private until you publish them.</p>
-            {userCanEdit && autosaveState !== 'idle' ? (
-              <p className={styles.autosaveStatus} role={autosaveState === 'error' ? 'alert' : undefined}>
-                {autosaveLabel(autosaveState)}
-              </p>
-            ) : null}
-          </div>
-          <FormField label="Change note" id="commitMessage">
-            {(field) => (
-              <Input
-                {...field}
-                form="plainwrite-editor-form"
-                name="commitMessage"
-                value={message}
-                onChange={(event) => setMessage(event.currentTarget.value)}
-                disabled={!userCanEdit}
-              />
-            )}
-          </FormField>
-          {userCanEdit ? (
-            <div className={styles.actions}>
-              <Button type="submit" form="plainwrite-editor-form">
-                Save
-              </Button>
-              <Button
-                type="submit"
-                form="plainwrite-editor-form"
-                formAction={commitAction}
-                variant="secondary"
-              >
-                Ready to publish
-              </Button>
-              <form action={publishFormAction}>
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  disabled={status !== 'committed' || publishPending}
-                  className={styles.fullWidth}
-                >
-                  {publishPending ? 'Publishing…' : 'Publish'}
-                </Button>
-              </form>
-            </div>
-          ) : null}
-          {publishState && !publishState.ok ? (
-            <div className={styles.feedbackError} role="status" aria-live="polite">
-              <p>{publishState.error}</p>
-              {isConflictError(publishState.error) ? (
-                <button
-                  type="button"
-                  className={styles.reviewChangesLink}
-                  onClick={() => setConflictReviewOpen(true)}
-                >
-                  Review changes
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
-
-        {userCanEdit ? (
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              className={styles.discardTrigger}
-              disabled={status === 'unmodified'}
-              onClick={() => setDiscardConfirmOpen(true)}
-            >
-              Discard changes
-            </Button>
-            <ConfirmDialog
-              open={discardConfirmOpen}
-              title="Discard changes"
-              message="This removes your changes and reloads the current version from your site. This cannot be undone."
-              confirmLabel="Discard changes"
-              onCancel={() => setDiscardConfirmOpen(false)}
-              onConfirm={() => {
-                setDiscardConfirmOpen(false);
-                void discardAction();
-              }}
-            />
-            <ConflictReviewDialog
-              open={conflictReviewOpen}
-              onClose={() => setConflictReviewOpen(false)}
-              projectId={projectId}
-              path={path}
-              discardAction={discardAction}
-              refreshBaseAction={refreshBaseAction}
-              forcePublishAction={publishAction}
-            />
-          </>
-        ) : null}
-      </aside>
+      {userCanEdit ? (
+        <>
+          <ConfirmDialog
+            open={discardConfirmOpen}
+            title="Discard changes"
+            message="This removes your changes and reloads the current version from your site. This cannot be undone."
+            confirmLabel="Discard changes"
+            onCancel={() => setDiscardConfirmOpen(false)}
+            onConfirm={() => {
+              setDiscardConfirmOpen(false);
+              void discardAction();
+            }}
+          />
+          <ConflictReviewDialog
+            open={conflictReviewOpen}
+            onClose={() => setConflictReviewOpen(false)}
+            projectId={projectId}
+            path={path}
+            discardAction={discardAction}
+            refreshBaseAction={refreshBaseAction}
+            forcePublishAction={publishAction}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

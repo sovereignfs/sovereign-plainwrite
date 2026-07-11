@@ -1368,6 +1368,49 @@ Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
 header on the Sites page (chip gone, button reads cleanly), zero console
 errors.
 
+### ✅ PLW-027 Single-Column Editor With A Top Action Bar
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` §4 (editor screens).
+
+**Status:** ✅ Complete.
+
+Three linked issues, one fix. After the sidebar removal (PLW-025) the
+content home / settings pages centered at `max-width: 1040px` while the
+editor stayed full-width — an inconsistent container width between sibling
+pages. The editor also carried its publish controls in a tall right-hand
+column (Current state, change note, Save / Ready to publish / Publish,
+Discard) that dominated the screen, and status was shown in three places at
+once (page toolbar, Post header, right panel). The spec's own editor
+wireframe puts controls in a top bar, not a right rail.
+
+Progress as of 2026-07-11:
+
+- [x] Editor is now a single column at the same `max-width: 1040px`
+  centered as the other pages, and uses the identical page skeleton —
+  `BackLink ("Back to posts") → PageHeader → content` — so all three
+  project-scoped screens read consistently (points 1 & 3).
+- [x] The right-hand control column became a compact horizontal **action
+  bar above** the Details/Post panels: status block on the left, controls
+  (Save / Ready to publish / Publish, change note, Discard) on the right
+  (point 2). The submit buttons keep `form="plainwrite-editor-form"`, so
+  they still drive the editor form correctly despite now sitting above it
+  in the DOM (verified live).
+- [x] Removed the duplicated status: dropped the page-level status toolbar
+  (status now lives once in the action bar) and the redundant status span
+  in the Post header. Back navigation is the shared `BackLink` instead of a
+  bespoke toolbar link.
+- [x] Deleted the now-unused `.sidePanel` / `.commitPanel` / `.fullWidth` /
+  `.discardTrigger` styles; the editor `.shell` is a plain single-column
+  stack. Mobile stacks the action bar and left-aligns its controls.
+- [x] Live-verified in the dev server at desktop and mobile widths: action
+  bar renders above a full-width single-column editor, buttons/change note
+  stay bound to the form, page width matches the other screens, zero
+  console errors.
+
+Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
+`pnpm format:check`, and a full `pnpm build` all pass. Live-verified across
+desktop and mobile (see above).
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

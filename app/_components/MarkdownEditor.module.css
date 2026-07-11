@@ -1,87 +1,73 @@
 .shell {
   display: grid;
   gap: var(--sv-space-5);
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
-  align-items: start;
 }
 
-.editorForm,
-.sidePanel,
-.commitPanel {
-  display: grid;
+/* Publish controls — a horizontal bar above the editor (status on the left,
+   actions on the right) rather than the tall right-hand column it used to be. */
+.actionBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--sv-space-4);
-}
-
-.frontmatterPanel,
-.bodyPanel,
-.commitPanel {
-  display: grid;
-  gap: var(--sv-space-3);
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
   background: var(--sv-color-surface);
   padding: var(--sv-space-4);
 }
 
-.bodyModeRow {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sv-space-2);
+.actionBarStatus {
+  display: grid;
+  gap: var(--sv-space-1);
+  min-width: 0;
 }
 
-.hiddenInput {
-  display: none;
-}
-
-.imageUploadError {
-  margin: 0;
-  font-size: var(--sv-font-size-sm);
-  color: var(--sv-color-error-text);
-}
-
-.sidePanel {
-  position: sticky;
-  top: var(--sv-space-4);
-}
-
-.sectionHeader {
-  align-items: flex-start;
-  display: flex;
-  justify-content: space-between;
-  gap: var(--sv-space-3);
-}
-
-.sectionHeader h2,
-.commitPanel h2 {
+.actionBarStatus h2 {
   margin: 0;
   font-size: var(--sv-font-size-lg);
 }
 
-.sectionHeader span {
-  color: var(--sv-color-text-secondary);
-  font-size: var(--sv-font-size-sm);
-  white-space: nowrap;
-}
-
-.eyebrow {
-  margin: 0 0 var(--sv-space-1);
-  color: var(--sv-color-text-secondary);
-  font-size: var(--sv-font-size-sm);
-}
-
-.commitPanel p {
+.statusHint,
+.autosaveStatus {
   margin: 0;
   color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
 }
 
 .autosaveStatus[role='alert'] {
   color: var(--sv-color-warning-text);
 }
 
+.actionBarControls {
+  display: grid;
+  gap: var(--sv-space-3);
+  flex: 1 1 320px;
+  max-width: 440px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+  justify-content: flex-end;
+}
+
+/* The Publish button lives in its own <form>; display:contents lets it sit in
+   the flex row alongside Save / Ready to publish as an equal sibling. */
+.actions form {
+  display: contents;
+}
+
+.discardRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .feedbackError {
   display: grid;
   gap: var(--sv-space-1);
+  flex: 1 1 100%;
   font-size: var(--sv-font-size-sm);
   padding: var(--sv-space-2) var(--sv-space-3);
   border-radius: var(--sv-radius-md);
@@ -105,22 +91,60 @@
   text-decoration: underline;
 }
 
-.actions {
+.editorForm {
   display: grid;
+  gap: var(--sv-space-4);
+}
+
+.frontmatterPanel,
+.bodyPanel {
+  display: grid;
+  gap: var(--sv-space-3);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface);
+  padding: var(--sv-space-4);
+}
+
+.sectionHeader {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+}
+
+.sectionHeader span {
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+  white-space: nowrap;
+}
+
+.eyebrow {
+  margin: 0 0 var(--sv-space-1);
+  color: var(--sv-color-text-secondary);
+  font-size: var(--sv-font-size-sm);
+}
+
+.bodyModeRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--sv-space-2);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.actions form {
-  display: grid;
+.hiddenInput {
+  display: none;
 }
 
-.fullWidth {
-  width: 100%;
-}
-
-.discardTrigger {
-  width: 100%;
+.imageUploadError {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-error-text);
 }
 
 .preview {
@@ -153,18 +177,19 @@
    (@sovereignfs/ui MOBILE_BREAKPOINT_PX / useIsMobile), not a plugin-local
    guess — see docs/adhoc/plainwrite-code-review-and-fix-plan.md P3-3. */
 @media (max-width: 768px) {
-  .shell {
-    grid-template-columns: 1fr;
+  .actionBar {
+    flex-direction: column;
   }
 
-  .sidePanel {
-    position: static;
+  .actionBarControls {
+    max-width: none;
   }
-}
 
-@media (max-width: 560px) {
-  .actions {
-    grid-template-columns: 1fr;
+  /* Stacked full-width, the controls read cleaner left-aligned than
+     right-floated (which leaves a ragged left edge against the status text). */
+  .actions,
+  .discardRow {
+    justify-content: flex-start;
   }
 
   .sectionHeader {

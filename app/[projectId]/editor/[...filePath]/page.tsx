@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@sovereignfs/ui';
+import { BackLink } from '../../../_components/BackLink';
 import { MarkdownEditor } from '../../../_components/MarkdownEditor';
 import {
   commitDraft,
@@ -41,6 +42,7 @@ export default async function EditorPage({ params, searchParams }: EditorPagePro
 
   return (
     <div className={styles.page}>
+      <BackLink href={`/plainwrite/${projectId}`}>Back to posts</BackLink>
       <PageHeader
         title={displayTitle}
         description={`${editor.project.name} · ${repositoryLabel} · ${editor.project.branch}`}
@@ -54,38 +56,25 @@ export default async function EditorPage({ params, searchParams }: EditorPagePro
           </div>
           <div className={styles.toolbarActions}>
             <Link href={`/plainwrite/${projectId}/editor/${path}`}>Retry</Link>
-            <Link href={`/plainwrite/${projectId}`}>Back to posts</Link>
           </div>
         </section>
       ) : (
-        <>
-          <section className={styles.toolbar} aria-label="Editor actions">
-            <div>
-              <p className={styles.eyebrow}>Status</p>
-              <p>{editor.baseSha ? 'Synced from your site' : 'New post — not on your site yet'}</p>
-            </div>
-            <div className={styles.toolbarActions}>
-              <Link href={`/plainwrite/${projectId}`}>Back to posts</Link>
-            </div>
-          </section>
-
-          <MarkdownEditor
-            projectId={projectId}
-            path={path}
-            content={editor.content}
-            baseSha={editor.baseSha}
-            status={editor.status}
-            commitMessage={editor.commitMessage}
-            userCanEdit={userCanEdit}
-            schemaFields={editor.schemaFields}
-            saveAction={saveDraft.bind(null, projectId, path)}
-            commitAction={commitDraft.bind(null, projectId, path)}
-            publishAction={publishCommittedDraft.bind(null, projectId, path)}
-            discardAction={discardDraft.bind(null, projectId, path)}
-            refreshBaseAction={refreshDraftBase.bind(null, projectId, path)}
-            uploadImageAction={uploadProjectImage.bind(null, projectId, null)}
-          />
-        </>
+        <MarkdownEditor
+          projectId={projectId}
+          path={path}
+          content={editor.content}
+          baseSha={editor.baseSha}
+          status={editor.status}
+          commitMessage={editor.commitMessage}
+          userCanEdit={userCanEdit}
+          schemaFields={editor.schemaFields}
+          saveAction={saveDraft.bind(null, projectId, path)}
+          commitAction={commitDraft.bind(null, projectId, path)}
+          publishAction={publishCommittedDraft.bind(null, projectId, path)}
+          discardAction={discardDraft.bind(null, projectId, path)}
+          refreshBaseAction={refreshDraftBase.bind(null, projectId, path)}
+          uploadImageAction={uploadProjectImage.bind(null, projectId, null)}
+        />
       )}
     </div>
   );
