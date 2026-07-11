@@ -1455,6 +1455,44 @@ Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
 `pnpm format:check`, and a full `pnpm build` all pass. Live-verified across
 three widths (see above).
 
+### ✅ PLW-029 Fix The Editor's Right Column (Independent-Height Flow)
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` §4 (editor screens).
+
+**Status:** ✅ Complete.
+
+PLW-028 placed the two columns with a CSS grid where the Post spanned both
+rows. On a long post that coupled the right column's row heights to the
+Post's height, so the Metadata/Details panel floated far down the right
+column (a big empty gap under Current state). Also narrows the right column
+per developer request.
+
+Progress as of 2026-07-11:
+
+- [x] Switched `.shell` from grid to **flexbox** (`align-items: flex-start`)
+  so the two columns take independent heights — a tall Post can no longer
+  drag Details down. The right column is now a real container (`.sideCol`,
+  an `<aside>`) that stacks Current state directly over Details.
+- [x] Moved the Details/Metadata panel out of the `<form>` and into
+  `.sideCol` alongside Current state. The form now carries only the two
+  hidden inputs (`display: contents`); Post and Details are controlled
+  components feeding the hidden `content` input, and Save / Ready to publish
+  + the change note still reach the form via `form="plainwrite-editor-form"`.
+- [x] Right column narrowed to a fixed `flex: 0 0 340px` (was ~408px); the
+  writing canvas takes the rest (~680px at the 1040px page width).
+- [x] Collapses to a single stacked column below 960px (unchanged
+  threshold); stacked order is Post → Current state → Details.
+
+Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
+`pnpm format:check`, and a full `pnpm build` all pass (editor route renders
+in prod). Interactive live-verification was blocked this session by a
+preview-environment auth issue (fresh-login session created in the DB and
+sign-in returns 200, but `/api/verify` returns 401 because the session
+cookie isn't transmitted on http-localhost) — not a code problem; the
+change is structural CSS/DOM and the form wiring matches the
+already-live-verified PLW-028 pattern. Visual confirmation pending on a
+running instance with a valid session.
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

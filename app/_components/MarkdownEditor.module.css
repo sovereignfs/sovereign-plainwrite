@@ -1,12 +1,13 @@
 /* Two-column editor: the writing canvas (Post) fills the bigger left column;
-   the right column stacks the publish controls (Current state) over the
-   post's Metadata. The <form> is display:contents so its children (the two
-   hidden inputs + the panels it wraps) participate directly in this grid —
-   hidden inputs are UA display:none, so they never create a phantom row. */
+   the right column (sideCol) stacks the publish controls (Current state) over
+   the post's Metadata. Flexbox, not grid, so the two columns take independent
+   heights — a long Post can't drag the right column's Details panel down to
+   its own height (which a row-spanning grid did). align-items:flex-start keeps
+   each column top-aligned. The <form> is display:contents and holds only the
+   two hidden inputs (UA display:none), so it never becomes a flex item. */
 .shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
-  align-items: start;
+  display: flex;
+  align-items: flex-start;
   gap: var(--sv-space-5);
 }
 
@@ -15,19 +16,15 @@
 }
 
 .bodyPanel {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  align-self: start;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-.currentState {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.frontmatterPanel {
-  grid-column: 2;
-  grid-row: 2;
+.sideCol {
+  flex: 0 0 340px;
+  display: grid;
+  align-content: start;
+  gap: var(--sv-space-4);
 }
 
 .currentState,
@@ -174,18 +171,17 @@
 /* Collapse the two columns below 960px — a layout-density threshold, not the
    768 mobile breakpoint: below ~960 the writing column drops under ~430px and
    a single stacked column reads far better than two cramped ones. When
-   stacked, source order (Current state → Post → Details) drives the vertical
-   flow, so the publish controls stay reachable up top. */
+   stacked, source order (Post → Current state → Details) drives the vertical
+   flow. */
 @media (max-width: 960px) {
   .shell {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .bodyPanel,
-  .currentState,
-  .frontmatterPanel {
-    grid-column: auto;
-    grid-row: auto;
+  .sideCol {
+    flex: 1 1 auto;
+    width: 100%;
   }
 }
 

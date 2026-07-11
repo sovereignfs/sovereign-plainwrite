@@ -240,84 +240,12 @@ export function MarkdownEditor({
 
   return (
     <div className={styles.shell}>
-      <section className={styles.currentState} aria-label="Publish controls">
-        <div className={styles.currentStateHead}>
-          <p className={styles.eyebrow}>Current state</p>
-          <h2>{editorStatusLabel(status, baseSha)}</h2>
-          <p className={styles.statusHint}>Changes stay private until you publish them.</p>
-          {userCanEdit && autosaveState !== 'idle' ? (
-            <p className={styles.autosaveStatus} role={autosaveState === 'error' ? 'alert' : undefined}>
-              {autosaveLabel(autosaveState)}
-            </p>
-          ) : null}
-        </div>
-
-        {userCanEdit ? (
-          <>
-            <div className={styles.actions}>
-              <Button type="submit" form="plainwrite-editor-form">
-                Save
-              </Button>
-              <Button
-                type="submit"
-                form="plainwrite-editor-form"
-                formAction={commitAction}
-                variant="secondary"
-              >
-                Ready to publish
-              </Button>
-              <form action={publishFormAction}>
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  disabled={status !== 'committed' || publishPending}
-                >
-                  {publishPending ? 'Publishing…' : 'Publish'}
-                </Button>
-              </form>
-            </div>
-            <FormField label="Change note" id="commitMessage">
-              {(field) => (
-                <Input
-                  {...field}
-                  form="plainwrite-editor-form"
-                  name="commitMessage"
-                  value={message}
-                  onChange={(event) => setMessage(event.currentTarget.value)}
-                  disabled={!userCanEdit}
-                />
-              )}
-            </FormField>
-            <div className={styles.discardRow}>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={status === 'unmodified'}
-                onClick={() => setDiscardConfirmOpen(true)}
-              >
-                Discard changes
-              </Button>
-            </div>
-          </>
-        ) : null}
-
-        {publishState && !publishState.ok ? (
-          <div className={styles.feedbackError} role="status" aria-live="polite">
-            <p>{publishState.error}</p>
-            {isConflictError(publishState.error) ? (
-              <button
-                type="button"
-                className={styles.reviewChangesLink}
-                onClick={() => setConflictReviewOpen(true)}
-              >
-                Review changes
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-
+      {/* The form carries only the two hidden inputs — the Post and Details
+          panels are controlled components that feed the hidden `content`
+          input, so they live outside the form (and the Save / Ready to
+          publish buttons + change note reach it via form="…"). This lets the
+          right column group Current state over Details in its own flow,
+          independent of the (often much taller) Post column. */}
       <form
         id="plainwrite-editor-form"
         className={styles.formContents}
@@ -326,8 +254,9 @@ export function MarkdownEditor({
       >
         <input type="hidden" name="baseSha" value={baseSha ?? ''} />
         <input type="hidden" name="content" value={serializedContent} />
+      </form>
 
-        <section className={styles.bodyPanel} aria-labelledby="body-heading">
+      <section className={styles.bodyPanel} aria-labelledby="body-heading">
           <div className={styles.sectionHeader}>
             <div>
               <p className={styles.eyebrow}>Content</p>
@@ -401,7 +330,89 @@ export function MarkdownEditor({
           )}
         </section>
 
-        <section className={styles.frontmatterPanel} aria-labelledby="frontmatter-heading">
+        <aside className={styles.sideCol}>
+          <section className={styles.currentState} aria-label="Publish controls">
+            <div className={styles.currentStateHead}>
+              <p className={styles.eyebrow}>Current state</p>
+              <h2>{editorStatusLabel(status, baseSha)}</h2>
+              <p className={styles.statusHint}>Changes stay private until you publish them.</p>
+              {userCanEdit && autosaveState !== 'idle' ? (
+                <p
+                  className={styles.autosaveStatus}
+                  role={autosaveState === 'error' ? 'alert' : undefined}
+                >
+                  {autosaveLabel(autosaveState)}
+                </p>
+              ) : null}
+            </div>
+
+            {userCanEdit ? (
+              <>
+                <div className={styles.actions}>
+                  <Button type="submit" form="plainwrite-editor-form">
+                    Save
+                  </Button>
+                  <Button
+                    type="submit"
+                    form="plainwrite-editor-form"
+                    formAction={commitAction}
+                    variant="secondary"
+                  >
+                    Ready to publish
+                  </Button>
+                  <form action={publishFormAction}>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      disabled={status !== 'committed' || publishPending}
+                    >
+                      {publishPending ? 'Publishing…' : 'Publish'}
+                    </Button>
+                  </form>
+                </div>
+                <FormField label="Change note" id="commitMessage">
+                  {(field) => (
+                    <Input
+                      {...field}
+                      form="plainwrite-editor-form"
+                      name="commitMessage"
+                      value={message}
+                      onChange={(event) => setMessage(event.currentTarget.value)}
+                      disabled={!userCanEdit}
+                    />
+                  )}
+                </FormField>
+                <div className={styles.discardRow}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={status === 'unmodified'}
+                    onClick={() => setDiscardConfirmOpen(true)}
+                  >
+                    Discard changes
+                  </Button>
+                </div>
+              </>
+            ) : null}
+
+            {publishState && !publishState.ok ? (
+              <div className={styles.feedbackError} role="status" aria-live="polite">
+                <p>{publishState.error}</p>
+                {isConflictError(publishState.error) ? (
+                  <button
+                    type="button"
+                    className={styles.reviewChangesLink}
+                    onClick={() => setConflictReviewOpen(true)}
+                  >
+                    Review changes
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+
+          <section className={styles.frontmatterPanel} aria-labelledby="frontmatter-heading">
           <div className={styles.sectionHeader}>
             <div>
               <p className={styles.eyebrow}>Metadata</p>
@@ -439,7 +450,7 @@ export function MarkdownEditor({
             />
           )}
         </section>
-      </form>
+      </aside>
 
       {userCanEdit ? (
         <>
