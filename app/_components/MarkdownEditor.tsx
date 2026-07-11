@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
+import type { Editor } from '@tiptap/react';
 import { Button, CodeTextarea, FormField, Input, SegmentedControl } from '@sovereignfs/ui';
-import type { ActionResult } from '../_lib/actions';
+import type { ActionResult, ImageUploadResult } from '../_lib/actions';
 import { formatPostStatus } from '../_lib/copy';
 import type { CollectionSchemaField } from '../_lib/schema-rules';
 import {
@@ -62,6 +63,7 @@ interface MarkdownEditorProps {
   publishAction: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
   discardAction: () => void | Promise<void>;
   refreshBaseAction: (prevState: ActionResult | null, formData: FormData) => Promise<ActionResult>;
+  uploadImageAction: (formData: FormData) => Promise<ImageUploadResult>;
 }
 
 type FrontmatterMode = 'structured' | 'raw';
@@ -81,6 +83,7 @@ export function MarkdownEditor({
   publishAction,
   discardAction,
   refreshBaseAction,
+  uploadImageAction,
 }: MarkdownEditorProps) {
   const parsed = useMemo(() => parseMarkdownDocument(content), [content]);
   const [frontmatterYaml, setFrontmatterYaml] = useState(parsed.frontmatterYaml);
@@ -107,6 +110,18 @@ export function MarkdownEditor({
     ActionResult | null,
     FormData
   >(publishAction, null);
+  // The live TipTap instance, handed up by RichTextBodyEditor (only mounted
+  // in Write mode) — needed to run its `setImage` command from the shared
+  // upload button below, which lives outside that component.
+  const [richEditor, setRichEditor] = useState<Editor | null>(null);
+  // CodeTextarea (packages/ui) doesn't forward a `ref` prop, so the DOM node
+  // is captured as a side effect of the change/focus handlers it already
+  // has wired instead of adding one — avoids a design-system change for a
+  // single plugin-local need.
+  const bodyTextareaElRef = useRef<HTMLTextAreaElement | null>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const [imageUploadPending, setImageUploadPending] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   const serializedContent = useMemo(
     () => serializeMarkdownDocument(frontmatterYaml, body),
@@ -180,6 +195,49 @@ export function MarkdownEditor({
     setMode(nextMode);
   }
 
+  /**
+   * Inserts the uploaded image's Markdown reference at the cursor for
+   * whichever body mode is currently active. Write mode: TipTap's own
+   * selection via `setImage`. Markdown mode: the raw textarea's
+   * `selectionStart`/`selectionEnd`, replacing any selected text — done
+   * imperatively (not through the controlled `body` state's change handler)
+   * because there's no synthetic input event to drive here, only a
+   * programmatic insert.
+   */
+  async function handleImageFileSelected(file: File) {
+    setImageUploadError(null);
+    setImageUploadPending(true);
+    try {
+      const formData = new FormData();
+      formData.set('image', file);
+      const result = await uploadImageAction(formData);
+      if (!result.ok) {
+        setImageUploadError(result.error);
+        return;
+      }
+      if (bodyMode === 'write') {
+        richEditor?.chain().focus().setImage({ src: result.url, alt: result.alt }).run();
+        return;
+      }
+      const textarea = bodyTextareaElRef.current;
+      if (!textarea) {
+        setBody((current) => `${current}\n${result.markdown}\n`);
+        return;
+      }
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const next = `${body.slice(0, start)}${result.markdown}${body.slice(end)}`;
+      setBody(next);
+      const cursor = start + result.markdown.length;
+      requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(cursor, cursor);
+      });
+    } finally {
+      setImageUploadPending(false);
+    }
+  }
+
   return (
     <div className={styles.shell}>
       <form
@@ -248,16 +306,52 @@ export function MarkdownEditor({
                 ]}
                 size="sm"
               />
+              {userCanEdit ? (
+                <>
+                  <input
+                    ref={imageFileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className={styles.hiddenInput}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (file) void handleImageFileSelected(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={bodyMode === 'preview' || imageUploadPending}
+                    onClick={() => imageFileInputRef.current?.click()}
+                  >
+                    {imageUploadPending ? 'Uploading…' : 'Upload image'}
+                  </Button>
+                </>
+              ) : null}
               <span>{editorStatusLabel(status, baseSha)}</span>
             </div>
           </div>
+          {imageUploadError ? <p className={styles.imageUploadError}>{imageUploadError}</p> : null}
           {bodyMode === 'write' ? (
-            <RichTextBodyEditor content={body} onChange={setBody} readOnly={!userCanEdit} />
+            <RichTextBodyEditor
+              content={body}
+              onChange={setBody}
+              readOnly={!userCanEdit}
+              onEditorReady={setRichEditor}
+            />
           ) : bodyMode === 'markdown' ? (
             <CodeTextarea
               aria-label="Post content"
               value={body}
-              onChange={(event) => setBody(event.currentTarget.value)}
+              onChange={(event) => {
+                bodyTextareaElRef.current = event.currentTarget;
+                setBody(event.currentTarget.value);
+              }}
+              onFocus={(event) => {
+                bodyTextareaElRef.current = event.currentTarget;
+              }}
               rows={24}
               readOnly={!userCanEdit}
             />

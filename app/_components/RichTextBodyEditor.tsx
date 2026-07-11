@@ -1,7 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { useEffect, type ReactNode } from 'react';
+import { EditorContent, useEditor, type Editor } from '@tiptap/react';
+import Image from '@tiptap/extension-image';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import styles from './RichTextBodyEditor.module.css';
@@ -10,6 +11,14 @@ interface RichTextBodyEditorProps {
   content: string;
   onChange: (markdown: string) => void;
   readOnly: boolean;
+  /**
+   * Hands the live TipTap `Editor` instance up to the parent so it can run
+   * commands from outside this component — specifically, inserting an
+   * uploaded image at the cursor (MarkdownEditor.tsx owns the upload button,
+   * since it needs to work the same way in Markdown mode too). Called with
+   * `null` on unmount.
+   */
+  onEditorReady?: (editor: Editor | null) => void;
 }
 
 /**
@@ -26,7 +35,7 @@ interface RichTextBodyEditorProps {
  * source from being parsed into live DOM nodes here, matching the same
  * XSS-safety posture as renderSafeMarkdownPreview.
  */
-export function RichTextBodyEditor({ content, onChange, readOnly }: RichTextBodyEditorProps) {
+export function RichTextBodyEditor({ content, onChange, readOnly, onEditorReady }: RichTextBodyEditorProps) {
   const editor = useEditor({
     // Next.js SSR: without this, TipTap tries to render on the server,
     // which produces a hydration mismatch on a component that's genuinely
@@ -37,6 +46,7 @@ export function RichTextBodyEditor({ content, onChange, readOnly }: RichTextBody
     editable: !readOnly,
     extensions: [
       StarterKit,
+      Image,
       Markdown.configure({
         html: false,
         transformPastedText: true,
@@ -53,6 +63,14 @@ export function RichTextBodyEditor({ content, onChange, readOnly }: RichTextBody
       },
     },
   });
+
+  // Deliberately keyed on `editor` alone — `onEditorReady` is a setState
+  // function from the parent (identity-stable), so including it would only
+  // add a no-op re-run on every parent render.
+  useEffect(() => {
+    onEditorReady?.(editor ?? null);
+    return () => onEditorReady?.(null);
+  }, [editor]);
 
   if (!editor) {
     return <div className={styles.loading}>Loading editor…</div>;

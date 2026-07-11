@@ -30,6 +30,16 @@
   gap: var(--sv-space-2);
 }
 
+.hiddenInput {
+  display: none;
+}
+
+.imageUploadError {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-error-text);
+}
+
 .sidePanel {
   position: sticky;
   top: var(--sv-space-4);

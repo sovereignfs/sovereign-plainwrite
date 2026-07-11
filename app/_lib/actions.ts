@@ -1,5 +1,6 @@
 'use server';
 
+import { Buffer } from 'node:buffer';
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -31,11 +32,13 @@ import {
   GitProviderError,
   type GitPublishResult,
 } from './git-providers';
+import { buildImageReferenceUrl, buildImageUploadFilePath, validateProjectImage } from './image-rules';
 import { buildGitHubOAuthUrl, exchangeGitHubOAuthCode } from './oauth-rules';
 import { notifyUser, recordActivity } from './platform-events';
 import {
   assertProjectRole,
   isProjectRole,
+  normalizeImageUploadPath,
   parseGitHubRepositoryUrl,
   projectInputDefaults,
   type ParsedGitHubRepository,
@@ -186,6 +189,16 @@ interface ProjectContext {
  * boundary is the right place for them.
  */
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
+
+/**
+ * Result of `uploadProjectImage`. `url`/`alt` are for the rich-text (Write
+ * mode) editor's `setImage` command, which takes them as separate node
+ * attributes; `markdown` is the equivalent `![alt](url)` text for the raw
+ * Markdown-mode textarea, which just splices in a string at the cursor.
+ */
+export type ImageUploadResult =
+  | { ok: true; path: string; url: string; alt: string; markdown: string }
+  | { ok: false; error: string };
 
 function now() {
   return Math.floor(Date.now() / 1000);
@@ -918,6 +931,99 @@ export async function publishCommittedDraft(
   }
 }
 
+/**
+ * Uploads an image straight to the git repository (not staged as a draft —
+ * binary assets don't fit the text-draft/conflict-review model the rest of
+ * this file uses) and returns the Markdown reference for the caller to
+ * insert at the editor's cursor. Reuses the exact same credential
+ * resolution, provider call, and publish-event/activity logging as a normal
+ * text publish, so branch protection and provider failures surface with the
+ * same classification.
+ */
+export async function uploadProjectImage(
+  projectId: string,
+  _prevState: ImageUploadResult | null,
+  formData: FormData,
+): Promise<ImageUploadResult> {
+  const { db, userId, tenantId } = await getContext();
+  await requireProjectRole(db, tenantId, projectId, userId, 'editor');
+  const project = await getProjectRow(db, tenantId, projectId);
+  const credential = await resolveGitHubCredential(db, tenantId, projectId, userId);
+  if (!credential.token) {
+    return { ok: false, error: 'Connect a GitHub token before uploading images.' };
+  }
+
+  const file = formData.get('image');
+  if (!(file instanceof File)) {
+    return { ok: false, error: 'No image selected.' };
+  }
+  const validation = validateProjectImage(file.type, file.size);
+  if (!validation.ok) {
+    return { ok: false, error: validation.error };
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const path = buildImageUploadFilePath(
+    normalizeImageUploadPath(project.imageUploadPath),
+    file.name,
+    validation.extension,
+    randomUUID().slice(0, 8),
+  );
+  const message = `Upload image ${path.split('/').at(-1) ?? path}`;
+  const provider = getGitProvider(project.provider);
+
+  try {
+    const result = await provider.publishFile(
+      project,
+      {
+        path,
+        content: bytes.toString('base64'),
+        contentEncoding: 'base64',
+        baseSha: null,
+        message,
+      },
+      { token: credential.token },
+    );
+    await insertPublishEvent(db, {
+      tenantId,
+      projectId,
+      userId,
+      provider: project.provider,
+      branch: project.branch,
+      commitSha: result.commitSha,
+      message,
+      files: [path],
+      status: 'success',
+      errorCode: null,
+      errorSummary: null,
+    });
+    await notifyAndLogPublish(db, tenantId, project, userId, [path], result.commitSha);
+    const url = buildImageReferenceUrl(path);
+    const alt = slugifyImageAlt(file.name);
+    return { ok: true, path, url, alt, markdown: `![${alt}](${url})` };
+  } catch (error) {
+    const failure = classifyPublishFailure(error);
+    await insertPublishEvent(db, {
+      tenantId,
+      projectId,
+      userId,
+      provider: project.provider,
+      branch: project.branch,
+      commitSha: null,
+      message,
+      files: [path],
+      status: 'failed',
+      errorCode: failure.code,
+      errorSummary: failure.summary,
+    });
+    return { ok: false, error: failure.summary };
+  }
+}
+
+function slugifyImageAlt(filename: string) {
+  return filename.replace(/\.[^.]+$/, '').trim() || 'Uploaded image';
+}
+
 export async function publishAllCommittedDrafts(
   projectId: string,
   _prevState: ActionResult | null,
@@ -1617,6 +1723,7 @@ export async function updateProjectSettings(projectId: string, formData: FormDat
       description: formString(formData, 'description') || null,
       branch: defaults.branch,
       pathPrefix: defaults.pathPrefix,
+      imageUploadPath: normalizeImageUploadPath(formString(formData, 'imageUploadPath')),
       ssgType: defaults.ssgType,
       isPrivate,
       metadataVisibility: defaults.metadataVisibility,

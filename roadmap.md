@@ -683,20 +683,85 @@ Verification:
 - Live-verified in the dev server against a real public Jekyll repository
   (see above).
 
-### PLW-013 Add Image Upload
+### ✅ PLW-013 Add Image Upload
 
 **Spec refs:** PLW-28.
 
+**Status:** ✅ Complete.
+
 Allow users to upload images into the git repository from the editor.
 
-Implementation requirements:
+Progress as of 2026-07-11:
 
-- Add configurable project image upload path, default `public/images/`.
-- Validate file type and size before upload.
-- Upload image through the provider adapter using the current user's credential.
-- Insert Markdown image reference at the editor cursor position.
-- Record publish events for uploaded files.
-- Respect branch protection and provider failure behavior from publish tasks.
+- [x] `app/_db/schema.ts`: added `imageUploadPath` (default `public/images`)
+  to `plainwriteProjects`; migration `0001_add_image_upload_path` (sqlite +
+  postgres, journals updated). `project-rules.ts`'s new
+  `normalizeImageUploadPath` mirrors `normalizePathPrefix` but has no
+  `.`-root convention — a repo-root image path would collide with the
+  repo's other top-level files, so root isn't a meaningful choice for it.
+  Exposed as an "Image upload path" field on the site settings page; not
+  added to the "Connect a site" wizard, since the schema default covers
+  project creation and keeping the wizard to its existing fields avoids
+  scope creep there.
+- [x] `app/_lib/image-rules.ts` (new, pure functions): `validateProjectImage`
+  (JPEG/PNG/WebP/GIF, 5 MB cap — SVG deliberately excluded, since inline SVG
+  can carry script content), `slugifyImageBasename`, `buildImageUploadFilePath`
+  (always appends a short random suffix so same-name uploads never collide —
+  simpler and race-free than checking remote existence first), and
+  `buildImageReferenceUrl` (strips a leading `public/` — Astro's, and this
+  task's default `imageUploadPath`'s, serve-at-root convention; other
+  `imageUploadPath` values are referenced as-is, since there's no reliable
+  way to know a given SSG's serving rules beyond that — a best-effort
+  default the user can freely edit afterward, documented as such in the
+  function's docblock).
+- [x] `git-providers.ts`: `publishFile`'s `file` param gained an optional
+  `contentEncoding?: 'utf8' | 'base64'`. Uploaded image bytes are binary, and
+  re-running already-base64 content through the existing
+  `Buffer.from(content, 'utf8').toString('base64')` path would corrupt it —
+  `'base64'` skips that re-encode and sends the bytes as-is.
+- [x] `actions.ts`: new `uploadProjectImage` action. Uploads straight to the
+  git repository (not staged as a draft — binary assets don't fit the
+  text-draft/conflict-review model the rest of this file uses) via the same
+  `resolveGitHubCredential` → `provider.publishFile` →
+  `insertPublishEvent`/`notifyAndLogPublish` → `classifyPublishFailure`
+  pipeline as a normal text publish, so branch protection and provider
+  failures get the same classification and audit trail for free. Returns a
+  new `ImageUploadResult` type (`url`/`alt` for the rich-text editor's
+  `setImage` command, `markdown` for the raw-textarea insertion — the two
+  modes need the reference in different shapes).
+- [x] `RichTextBodyEditor.tsx`: added `@tiptap/extension-image` (bundled
+  markdown serialization already exists in `tiptap-markdown`'s default
+  extension set, verified by reading its source — no custom serializer
+  needed) and an `onEditorReady` callback that hands the live `Editor`
+  instance up to `MarkdownEditor.tsx`, since the shared upload button lives
+  outside this component (it needs to work the same way in Markdown mode).
+- [x] `MarkdownEditor.tsx`: a single "Upload image" button next to the
+  Write/Markdown/Preview `SegmentedControl` (disabled in Preview mode, since
+  there's nowhere to insert), backed by a hidden file input. On success,
+  Write mode calls `richEditor.chain().focus().setImage(...).run()`; Markdown
+  mode splices the Markdown reference into the raw textarea at
+  `selectionStart`/`selectionEnd`. The textarea's DOM node is captured as a
+  side effect of the `onChange`/`onFocus` handlers it already has wired,
+  rather than adding a `ref` prop to `CodeTextarea` (`packages/ui`, in the
+  separate platform repo — out of scope for a plugin-repo task, and this
+  plugin-local capture avoids needing it at all).
+- [x] `portability.ts`: added `imageUploadPath` to project export/import for
+  round-trip fidelity, matching every other project column.
+- [x] Added `image-rules.test.ts` (14 cases: validation, slugify, path
+  building, reference URL) and `actions-upload-image.test.ts` (6 cases:
+  success, unsupported type, oversized file, missing credential, provider
+  failure, no file selected — all against a mocked provider).
+- [x] Live-verified in the dev server: the "Upload image" button and hidden
+  file input render correctly next to the mode switcher; a real file
+  selection (via a synthetic `DataTransfer`, since there's no way to drive
+  the native OS file picker) correctly reached `uploadProjectImage` and
+  surfaced its inline error ("Connect a GitHub token before uploading
+  images.") in the UI with zero console errors — this session's test
+  projects are all public demo repos with no real write credential, so the
+  actual-GitHub-write success path isn't live-verified end-to-end (same
+  constraint noted in PLW-022); it's covered by the mocked action test
+  instead. The new "Image upload path" settings field also renders
+  correctly with its default value.
 
 Acceptance criteria:
 
@@ -706,8 +771,9 @@ Acceptance criteria:
 
 Verification:
 
-- Add upload validation tests and provider mock tests.
-- Run typecheck and tests.
+- `pnpm test` (plugin: 156/156), `pnpm typecheck`, `pnpm lint`,
+  `pnpm format:check`, and a full `pnpm build` all pass.
+- Live-verified in the dev server (see above).
 
 ## v0.3 Collaboration And Conflict Resolution
 

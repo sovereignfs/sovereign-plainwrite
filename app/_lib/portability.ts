@@ -55,6 +55,7 @@ interface ExportProject {
   repoName: string;
   branch: string;
   pathPrefix: string;
+  imageUploadPath: string;
   ssgType: string;
   isPrivate: boolean;
   metadataVisibility: string;
@@ -150,6 +151,7 @@ async function exportPlainwriteData(ctx: ExportContext): Promise<PluginExportSec
         repoName: project.repoName,
         branch: project.branch,
         pathPrefix: project.pathPrefix,
+        imageUploadPath: project.imageUploadPath,
         ssgType: project.ssgType,
         isPrivate: project.isPrivate,
         metadataVisibility: project.metadataVisibility,
@@ -293,6 +295,7 @@ async function importPlainwriteData(section: PluginExportSection, ctx: ImportCon
       repoName: project.repoName,
       branch: project.branch,
       pathPrefix: project.pathPrefix,
+      imageUploadPath: project.imageUploadPath,
       ssgType: project.ssgType,
       isPrivate: project.isPrivate,
       metadataVisibility: project.metadataVisibility,

@@ -9,6 +9,7 @@ import {
   publishCommittedDraft,
   refreshDraftBase,
   saveDraft,
+  uploadProjectImage,
 } from '../../../_lib/actions';
 import { parseMarkdownDocument } from '../../../_lib/editor-rules';
 import { canEditProject } from '../../../_lib/project-rules';
@@ -82,6 +83,7 @@ export default async function EditorPage({ params, searchParams }: EditorPagePro
             publishAction={publishCommittedDraft.bind(null, projectId, path)}
             discardAction={discardDraft.bind(null, projectId, path)}
             refreshBaseAction={refreshDraftBase.bind(null, projectId, path)}
+            uploadImageAction={uploadProjectImage.bind(null, projectId, null)}
           />
         </>
       )}

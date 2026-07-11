@@ -100,6 +100,16 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                 </Select>
               )}
             </FormField>
+            <FormField label="Image upload path" hint="Where uploaded images are committed in your repo.">
+              {(field) => (
+                <Input
+                  {...field}
+                  name="imageUploadPath"
+                  defaultValue={project.imageUploadPath}
+                  disabled={!userCanManage}
+                />
+              )}
+            </FormField>
             <FormField label="Who can see this info">
               {(field) => (
                 <Select

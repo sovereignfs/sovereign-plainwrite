@@ -53,6 +53,14 @@ export function normalizePathPrefix(value: string): string {
   return trimmed || 'src/content';
 }
 
+/** No `.`-root convention here (unlike `normalizePathPrefix`) — an image
+ * upload path at the repository root would collide with the repo's other
+ * top-level files, so root isn't a meaningful choice for it. */
+export function normalizeImageUploadPath(value: string): string {
+  const trimmed = value.trim().replace(/^\/+|\/+$/g, '');
+  return trimmed || 'public/images';
+}
+
 export function defaultMetadataVisibility(isPrivate: boolean): MetadataVisibility {
   return isPrivate ? 'members_with_credentials' : 'all_members';
 }

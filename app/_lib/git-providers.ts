@@ -60,6 +60,14 @@ export interface GitProviderAdapter {
     file: {
       path: string;
       content: string | null;
+      /**
+       * `'utf8'` (default): `content` is a text string, re-encoded to base64
+       * for the wire. `'base64'`: `content` is already base64 (e.g. an
+       * uploaded image's raw bytes) — used as-is, since re-running it through
+       * `Buffer.from(content, 'utf8')` would corrupt binary data that isn't
+       * valid UTF-8 text.
+       */
+      contentEncoding?: 'utf8' | 'base64';
       baseSha: string | null;
       message: string;
     },
@@ -201,6 +209,7 @@ class GitHubProvider implements GitProviderAdapter {
     file: {
       path: string;
       content: string | null;
+      contentEncoding?: 'utf8' | 'base64';
       baseSha: string | null;
       message: string;
     },
@@ -234,7 +243,10 @@ class GitHubProvider implements GitProviderAdapter {
         method: 'PUT',
         body: JSON.stringify({
           message: file.message,
-          content: Buffer.from(file.content, 'utf8').toString('base64'),
+          content:
+            file.contentEncoding === 'base64'
+              ? file.content
+              : Buffer.from(file.content, 'utf8').toString('base64'),
           branch: project.branch,
           ...(file.baseSha ? { sha: file.baseSha } : {}),
         }),

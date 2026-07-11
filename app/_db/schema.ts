@@ -21,6 +21,7 @@ export const plainwriteProjects = sqliteTable('plainwrite_projects', {
   repoName: text('repo_name').notNull(),
   branch: text('branch').notNull(),
   pathPrefix: text('path_prefix').notNull(),
+  imageUploadPath: text('image_upload_path').notNull().default('public/images'),
   ssgType: text('ssg_type').notNull(),
   isPrivate: integer('is_private', { mode: 'boolean' }).notNull().default(false),
   metadataVisibility: text('metadata_visibility').notNull(),
