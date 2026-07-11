@@ -2,6 +2,22 @@
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
   overflow: hidden;
+  /* Fill the height a flex parent (MarkdownEditor's .editorArea) gives us so
+     the writing surface grows with the panel; falls back to the .prose
+     min-height when the parent isn't a flex column. */
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The @tiptap/react EditorContent wrapper (last child, after the toolbar) —
+   let it and the editable prose grow to fill. */
+.shell > div:last-child {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .loading {
@@ -61,6 +77,7 @@
 }
 
 .prose {
+  flex: 1 1 auto;
   min-height: 460px;
   padding: var(--sv-space-4);
   color: var(--sv-color-text-primary);

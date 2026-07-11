@@ -301,33 +301,36 @@ export function MarkdownEditor({
             </div>
           </div>
           {imageUploadError ? <p className={styles.imageUploadError}>{imageUploadError}</p> : null}
-          {bodyMode === 'write' ? (
-            <RichTextBodyEditor
-              content={body}
-              onChange={setBody}
-              readOnly={!userCanEdit}
-              onEditorReady={setRichEditor}
-            />
-          ) : bodyMode === 'markdown' ? (
-            <CodeTextarea
-              aria-label="Post content"
-              value={body}
-              onChange={(event) => {
-                bodyTextareaElRef.current = event.currentTarget;
-                setBody(event.currentTarget.value);
-              }}
-              onFocus={(event) => {
-                bodyTextareaElRef.current = event.currentTarget;
-              }}
-              rows={24}
-              readOnly={!userCanEdit}
-            />
-          ) : (
-            <div
-              className={styles.preview}
-              dangerouslySetInnerHTML={{ __html: previewHtml || '<p>Nothing to preview yet.</p>' }}
-            />
-          )}
+          <div className={styles.editorArea}>
+            {bodyMode === 'write' ? (
+              <RichTextBodyEditor
+                content={body}
+                onChange={setBody}
+                readOnly={!userCanEdit}
+                onEditorReady={setRichEditor}
+              />
+            ) : bodyMode === 'markdown' ? (
+              <CodeTextarea
+                className={styles.markdownFill}
+                aria-label="Post content"
+                value={body}
+                onChange={(event) => {
+                  bodyTextareaElRef.current = event.currentTarget;
+                  setBody(event.currentTarget.value);
+                }}
+                onFocus={(event) => {
+                  bodyTextareaElRef.current = event.currentTarget;
+                }}
+                rows={24}
+                readOnly={!userCanEdit}
+              />
+            ) : (
+              <div
+                className={styles.preview}
+                dangerouslySetInnerHTML={{ __html: previewHtml || '<p>Nothing to preview yet.</p>' }}
+              />
+            )}
+          </div>
         </section>
 
         <aside className={styles.sideCol}>

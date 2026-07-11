@@ -7,7 +7,7 @@
    two hidden inputs (UA display:none), so it never becomes a flex item. */
 .shell {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: var(--sv-space-5);
 }
 
@@ -18,24 +18,48 @@
 .bodyPanel {
   flex: 1 1 0;
   min-width: 0;
+  /* Flex column so the editor area (last child) grows to fill the panel
+     height — which stretch makes equal to the taller column, usually the
+     metadata-heavy right one. */
+  display: flex;
+  flex-direction: column;
 }
 
 .sideCol {
   flex: 0 0 340px;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: var(--sv-space-4);
 }
 
 .currentState,
 .frontmatterPanel,
 .bodyPanel {
-  display: grid;
   gap: var(--sv-space-3);
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
   background: var(--sv-color-surface);
   padding: var(--sv-space-4);
+}
+
+.currentState,
+.frontmatterPanel {
+  display: grid;
+  align-content: start;
+}
+
+/* The editor surface (Write / Markdown / Preview) grows to fill whatever
+   height the panel has, but never shrinks below a comfortable writing size. */
+.editorArea {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 460px;
+}
+
+.markdownFill {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .currentStateHead {
@@ -143,8 +167,8 @@
 }
 
 .preview {
+  flex: 1 1 auto;
   min-height: 260px;
-  max-height: 620px;
   overflow: auto;
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);

@@ -1493,6 +1493,43 @@ change is structural CSS/DOM and the form wiring matches the
 already-live-verified PLW-028 pattern. Visual confirmation pending on a
 running instance with a valid session.
 
+### ✅ PLW-030 Editor Grows To Fill The Taller Column
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` §4 (editor screens).
+
+**Status:** ✅ Complete (static-verified; visual pending — see below).
+
+For a metadata-heavy post the right column (Current state + Details) is
+taller than the writing area, leaving unbalanced dead space under the Post
+panel. Now the columns are equal height and the writing surface grows to
+fill, so the editor matches the taller column — with a comfortable minimum
+so a metadata-light post still gets a good editor size. Also gives more room
+to write, the real benefit.
+
+Progress as of 2026-07-11:
+
+- [x] `.shell` uses `align-items: stretch` so both columns take the taller
+  one's height; `.bodyPanel` is a flex column whose editor area
+  (`.editorArea`, `flex: 1`, `min-height: 460px`) fills the remaining space.
+- [x] Each mode fills: Markdown textarea (`.markdownFill`) and the Preview
+  block flex to fill; the Write-mode rich-text editor fills via a flex chain
+  in `RichTextBodyEditor.module.css` (`.shell` → EditorContent wrapper →
+  `.prose`). Every element keeps its existing `min-height` as a floor, so
+  nothing can render smaller than before — worst case for a mode whose fill
+  chain doesn't fully cascade is exactly today's behavior.
+- [x] `.sideCol` is a flex column; when the writing area is the taller side
+  instead, the right column stretches with Current state + Details pinned to
+  the top (normal inspector behavior).
+
+Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
+`pnpm format:check`, and a full `pnpm build` all pass (editor route renders
+in prod). Interactive visual verification was again blocked this session by
+the same preview-environment auth issue as PLW-029 (`/api/verify` 401 on a
+fresh http-localhost login; the auto-mode guardrail also blocked verifying
+the auditor test account's email to work around it). The change is bounded
+by min-height floors, so it cannot regress below the current editor size;
+visual confirmation pending on a running instance with a valid session.
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.
