@@ -22,8 +22,15 @@ import {
   type PlainwriteProjectMember,
 } from '../_db/schema';
 import { defaultMarkdownTemplate, type ContentFile } from './content-rules';
+import { countPostsUnderPrefix, suggestPathPrefix } from './detection-rules';
 import { buildContentFilePath } from './editor-rules';
-import { getGitProvider, GitProviderError, type GitPublishResult } from './git-providers';
+import {
+  detectGitHubRepository,
+  detectGitHubRepositoryFiles,
+  getGitProvider,
+  GitProviderError,
+  type GitPublishResult,
+} from './git-providers';
 import { buildGitHubOAuthUrl, exchangeGitHubOAuthCode } from './oauth-rules';
 import { notifyUser, recordActivity } from './platform-events';
 import {
@@ -31,6 +38,7 @@ import {
   isProjectRole,
   parseGitHubRepositoryUrl,
   projectInputDefaults,
+  type ParsedGitHubRepository,
   type ProjectRole,
 } from './project-rules';
 import {
@@ -1480,6 +1488,56 @@ export async function disconnectGitHubCredential(projectId: string) {
     );
 
   revalidateProject(projectId);
+}
+
+export type RepositoryDetectionResult =
+  | {
+      ok: true;
+      owner: string;
+      name: string;
+      branch: string;
+      pathPrefix: string;
+      postCount: number;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Step 1 of the "Connect a site" wizard: an unauthenticated lookup, since a
+ * project row (and therefore a credential — stored per-project) doesn't
+ * exist yet at this point. Only works for public repositories; a private
+ * repo just falls back to the manual entry the wizard already offers.
+ */
+export async function detectRepository(repositoryUrl: string): Promise<RepositoryDetectionResult> {
+  await sdk.auth.requireSession();
+
+  let repo: ParsedGitHubRepository;
+  try {
+    repo = parseGitHubRepositoryUrl(repositoryUrl);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Invalid repository URL.' };
+  }
+
+  const info = await detectGitHubRepository(repo.owner, repo.name).catch(() => null);
+  if (!info) {
+    return {
+      ok: false,
+      error: "Couldn't find that repository — or it's private. Enter the details manually below.",
+    };
+  }
+
+  const entries = await detectGitHubRepositoryFiles(repo.owner, repo.name, info.defaultBranch).catch(
+    () => [],
+  );
+  const pathPrefix = suggestPathPrefix(entries) ?? 'src/content';
+
+  return {
+    ok: true,
+    owner: repo.owner,
+    name: repo.name,
+    branch: info.defaultBranch,
+    pathPrefix,
+    postCount: countPostsUnderPrefix(entries, pathPrefix),
+  };
 }
 
 export async function createProject(formData: FormData) {

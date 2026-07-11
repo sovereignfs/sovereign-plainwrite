@@ -1,7 +1,7 @@
 # Plainwrite UI redesign — writer-first simplification
 
-**Status:** Phases 1–4 complete — see PLW-019/PLW-020/PLW-021/PLW-022 in
-`roadmap.md`. Phases 5–6 (connect wizard, editor modes) remain proposals.
+**Status:** Phases 1–5 complete — see PLW-019 through PLW-023 in
+`roadmap.md`. Phase 6 (editor modes) remains a proposal.
 **Date:** 2026-07-10
 **Wireframe assets:** [`docs/adhoc/plainwrite-ui-redesign/`](./plainwrite-ui-redesign/) (SVG, one per screen)
 
@@ -233,8 +233,10 @@ Each phase is shippable on its own and roughly maps to one roadmap task.
    held-back conflicts still just skip-and-report (no per-file review from
    the multi-publish dialog yet — a reasonable follow-on, not blocking).
    (PLW-022)
-5. **Connect-a-site wizard** — detection endpoint + 3-step flow, replacing the
-   new-project form.
+5. **Connect-a-site wizard** ✅ — detection step (unauthenticated GitHub
+   lookup: default branch + likely content path) followed by a confirmation
+   step, replacing the single-step new-project form. Public repos only;
+   private repos fall back to the original manual-entry flow. (PLW-023)
 6. **Editor modes** — mode switcher, Preview mode (cheap), then Write mode
    (rich-text dependency — the largest single work item; can ship last).
 

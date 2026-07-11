@@ -84,6 +84,51 @@ export function getGitProvider(provider: string): GitProviderAdapter {
   throw new Error(`Git provider "${provider}" is not implemented yet.`);
 }
 
+/**
+ * Unauthenticated repository lookup for the "Connect a site" wizard, which
+ * runs before a project row (and therefore before any credential, which is
+ * stored per-project) exists — there's nothing to authenticate with yet.
+ * Only ever succeeds for a public repository; a private repo and a
+ * genuinely nonexistent one are indistinguishable here (both 404), which is
+ * why the wizard's copy hedges ("couldn't find it, or it's private") rather
+ * than asserting either.
+ */
+export async function detectGitHubRepository(
+  owner: string,
+  repo: string,
+): Promise<{ defaultBranch: string } | null> {
+  try {
+    const body = await fetchGitHubJson<{ default_branch?: string }>(
+      `https://api.github.com/repos/${owner}/${repo}`,
+    );
+    return body.default_branch ? { defaultBranch: body.default_branch } : null;
+  } catch (error) {
+    if (error instanceof GitProviderError && error.notFound) return null;
+    throw error;
+  }
+}
+
+/** Companion to detectGitHubRepository — same unauthenticated, pre-project constraints. */
+export async function detectGitHubRepositoryFiles(
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<GitTreeEntry[]> {
+  try {
+    const body = await fetchGitHubJson<{
+      tree?: Array<{ path?: string; type?: string; sha?: string }>;
+    }>(`https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`);
+    return (body.tree ?? []).flatMap((entry): GitTreeEntry[] => {
+      if (!entry.path || !entry.sha) return [];
+      if (entry.type !== 'blob' && entry.type !== 'tree') return [];
+      return [{ path: entry.path, type: entry.type === 'blob' ? 'file' : 'directory', sha: entry.sha }];
+    });
+  } catch (error) {
+    if (error instanceof GitProviderError && error.notFound) return [];
+    throw error;
+  }
+}
+
 class GitHubProvider implements GitProviderAdapter {
   async getFileTree(
     project: PlainwriteProject,

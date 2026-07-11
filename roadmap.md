@@ -826,10 +826,10 @@ Verification:
 Phase 1 of the writer-first UI redesign proposed in
 `docs/adhoc/plainwrite-ui-redesign.md`: translate git/technical vocabulary to
 plain language across every existing screen, with no layout or data-model
-changes. See the doc's §3 jargon table and §8 phasing for the full plan;
-phases 2–6 (navigation restructure, new-post/publish flow, conflict review,
-connect-a-site wizard, editor modes) are follow-on tasks, not yet assigned
-IDs.
+changes. See the doc's §3 jargon table and §8 phasing for the full plan.
+Phases 2–5 (navigation restructure, new-post/publish flow, conflict review,
+connect-a-site wizard) landed as PLW-020 through PLW-023; editor modes
+(phase 6) remain a follow-on, not yet assigned an ID.
 
 Progress as of 2026-07-10:
 
@@ -1074,6 +1074,67 @@ Verification:
 
 - `pnpm typecheck`, `pnpm lint`, `pnpm test` (117/117), `pnpm format:check`,
   and a full `pnpm build` all pass from the platform root.
+
+### ✅ PLW-023 Connect-A-Site Wizard
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` (proposal), phase 5 of 6.
+
+**Status:** ✅ Complete (public-repo detection; private repos fall back to
+manual entry).
+
+Phase 5 of the writer-first UI redesign: turn "New project" into a two-step
+"Connect a site" wizard that detects the repository's default branch and
+likely content path before asking the user to confirm anything, instead of
+asking for branch/path up front. Builds on PLW-019/020/021/022.
+
+Progress as of 2026-07-11:
+
+- [x] `app/_lib/git-providers.ts`: added `detectGitHubRepository` (default
+  branch lookup) and `detectGitHubRepositoryFiles` (recursive tree listing),
+  both unauthenticated — credentials are stored per-project
+  (`plainwrite_credentials` is keyed on `(projectId, userId)`) and so cannot
+  be attached before a project row exists. This scopes detection to public
+  repositories; private repos fall back to the existing manual-entry +
+  post-creation credential-connection flow, an intentional adaptation of the
+  proposal's flow to this constraint.
+- [x] `app/_lib/detection-rules.ts` (new, pure functions): `suggestPathPrefix`
+  (prefers `src/content/`, else the common ancestor directory of all markdown
+  files found) and `countPostsUnderPrefix`.
+- [x] `app/_lib/actions.ts`: new `detectRepository` action wraps URL parsing +
+  detection + prefix suggestion + post count behind a single call the wizard
+  step can await; returns a friendly "couldn't find that repository — or it's
+  private" message on failure rather than a raw API error. `createProject`
+  itself is unchanged.
+- [x] `NewProjectDialog.tsx` rewritten into a 2-step wizard (`detect` →
+  `confirm`): step one takes a repository URL and calls `detectRepository`,
+  auto-filling name/branch/pathPrefix on success and advancing; on failure (or
+  via an explicit "Continue manually" escape hatch) the user lands on the
+  original single-step form fields. Step two shows a "Found it — N posts in
+  `<prefix>`" confirmation when detection succeeded.
+- [x] Fixed a CSS specificity bug found while styling the confirmation note:
+  `.header p` (0,1,1) was silently beating `.detectionNote` (0,1,0) regardless
+  of source order; resolved with `.header p.detectionNote` (0,2,1).
+- [x] Added `detection-rules.test.ts` (8 cases) and
+  `actions-detect-repository.test.ts` (4 cases, GitHub calls mocked).
+- [x] Live-verified end-to-end against a real public repository
+  (`satnaing/astro-paper`): detected branch `main`, suggested `src/content`,
+  counted 19 real markdown posts, auto-filled "Astro Paper" as the site name,
+  and successfully created the project with all 19 posts synced and grouped
+  by collection.
+
+Acceptance criteria:
+
+- Connecting a public GitHub repository requires only a URL; branch and
+  content path are detected and pre-filled, not asked for blind.
+- Private repos and detection failures degrade gracefully to the previous
+  manual-entry form, with no dead end.
+
+Verification:
+
+- `pnpm test` (plugin: 129/129), `pnpm typecheck`, `pnpm lint`,
+  `pnpm format:check`, and a full `pnpm build` all pass.
+- Live-verified in the dev server against a real public GitHub repository
+  (see above).
 
 ## Future Backlog
 
