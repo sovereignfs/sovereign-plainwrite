@@ -71,8 +71,98 @@ describe('Astro adapter', () => {
   });
 });
 
+const jekyllTree: GitTreeEntry[] = [
+  { path: '_posts/2024-01-05-hello-world.md', type: 'file', sha: 'sha-post-1' },
+  { path: '_posts/2024-02-10-second-post.markdown', type: 'file', sha: 'sha-post-2' },
+  { path: '_pages/about.md', type: 'file', sha: 'sha-page' },
+  { path: '_drafts/unfinished-idea.md', type: 'file', sha: 'sha-draft' },
+  { path: '_posts/2024-01-05-hello-world.png', type: 'file', sha: 'sha-image' },
+  { path: '_layouts/post.html', type: 'file', sha: 'sha-layout' },
+  { path: '_posts', type: 'directory', sha: 'sha-dir' },
+  { path: 'index.md', type: 'file', sha: 'sha-index' },
+];
+
+describe('Jekyll adapter', () => {
+  it('discovers posts, pages, and drafts at the repository root', () => {
+    const adapter = getSsgAdapter('jekyll');
+
+    expect(adapter.discoverContent(jekyllTree, '')).toEqual([
+      {
+        path: '_drafts/unfinished-idea.md',
+        collection: 'drafts',
+        filename: 'unfinished-idea.md',
+        sha: 'sha-draft',
+      },
+      {
+        path: '_pages/about.md',
+        collection: 'pages',
+        filename: 'about.md',
+        sha: 'sha-page',
+      },
+      {
+        path: '_posts/2024-01-05-hello-world.md',
+        collection: 'posts',
+        filename: '2024-01-05-hello-world.md',
+        sha: 'sha-post-1',
+      },
+      {
+        path: '_posts/2024-02-10-second-post.markdown',
+        collection: 'posts',
+        filename: '2024-02-10-second-post.markdown',
+        sha: 'sha-post-2',
+      },
+    ]);
+  });
+
+  it('infers collection names from the Jekyll directory convention', () => {
+    const adapter = getSsgAdapter('jekyll');
+
+    expect(adapter.inferCollection('_posts/2024-01-05-hello-world.md', '')).toBe('posts');
+    expect(adapter.inferCollection('_pages/about.md', '')).toBe('pages');
+    expect(adapter.inferCollection('_drafts/unfinished-idea.md', '')).toBe('drafts');
+    expect(adapter.inferCollection('index.md', '')).toBeNull();
+  });
+
+  it('allows a Markdown path inside a recognized collection directory', () => {
+    const adapter = getSsgAdapter('jekyll');
+
+    expect(adapter.isPathAllowed('_posts/2024-01-05-hello-world.md', '')).toBe(true);
+    expect(adapter.isPathAllowed('_posts/2024-02-10-second-post.markdown', '')).toBe(true);
+  });
+
+  it('rejects a path outside the three recognized collection directories', () => {
+    const adapter = getSsgAdapter('jekyll');
+
+    expect(adapter.isPathAllowed('index.md', '')).toBe(false);
+    expect(adapter.isPathAllowed('_layouts/post.html', '')).toBe(false);
+    expect(adapter.isPathAllowed('_projects/custom-collection.md', '')).toBe(false);
+  });
+
+  it('rejects a path inside a collection directory with an unsupported extension', () => {
+    const adapter = getSsgAdapter('jekyll');
+
+    expect(adapter.isPathAllowed('_posts/2024-01-05-hello-world.png', '')).toBe(false);
+  });
+
+  it('supports a non-root path prefix for Jekyll content nested in a subdirectory', () => {
+    const nestedTree: GitTreeEntry[] = [
+      { path: 'site/_posts/2024-01-05-hello-world.md', type: 'file', sha: 'sha-nested' },
+    ];
+    const adapter = getSsgAdapter('jekyll');
+
+    expect(adapter.discoverContent(nestedTree, 'site')).toEqual([
+      {
+        path: 'site/_posts/2024-01-05-hello-world.md',
+        collection: 'posts',
+        filename: '2024-01-05-hello-world.md',
+        sha: 'sha-nested',
+      },
+    ]);
+  });
+});
+
 describe('getSsgAdapter', () => {
   it('throws for an unimplemented SSG type', () => {
-    expect(() => getSsgAdapter('jekyll')).toThrow('SSG adapter "jekyll" is not implemented yet.');
+    expect(() => getSsgAdapter('hugo')).toThrow('SSG adapter "hugo" is not implemented yet.');
   });
 });

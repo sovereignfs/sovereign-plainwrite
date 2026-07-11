@@ -187,7 +187,7 @@ export function NewProjectDialog() {
                   />
                 )}
               </FormField>
-              <FormField label="Content folder">
+              <FormField label="Content folder" hint="Use . if your posts live at the repository root.">
                 {(field) => (
                   <Input
                     {...field}
@@ -202,6 +202,7 @@ export function NewProjectDialog() {
               {(field) => (
                 <Select {...field} name="ssgType" defaultValue="astro">
                   <option value="astro">Astro</option>
+                  <option value="jekyll">Jekyll</option>
                 </Select>
               )}
             </FormField>

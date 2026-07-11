@@ -594,9 +594,14 @@ Verification:
 
 ## v0.2 Rich Text, Jekyll, Images
 
-### PLW-011 Add Rich Text Markdown Editor
+### ✅ PLW-011 Add Rich Text Markdown Editor
 
 **Spec refs:** PLW-26.
+
+**Status:** ✅ Complete — substantially fulfilled by PLW-024 (see the writer-first
+UI redesign's phase 6). Image insertion is the one acceptance-criteria item not
+yet covered; that's tracked separately under PLW-013 since no upload capability
+exists yet.
 
 Add a WYSIWYG mode powered by Tiptap, ProseMirror, or equivalent.
 
@@ -619,20 +624,51 @@ Verification:
 - Add editor serialization tests and interaction tests.
 - Run typecheck and tests.
 
-### PLW-012 Add Jekyll Adapter After Astro
+### ✅ PLW-012 Add Jekyll Adapter After Astro
 
 **Spec refs:** PLW-27.
+
+**Status:** ✅ Complete.
 
 Implement Jekyll content discovery without changing core file listing or editor
 logic.
 
-Implementation requirements:
+Progress as of 2026-07-11:
 
-- Add `JekyllAdapter` implementing `SsgAdapter`.
-- Scan `_posts/`, `_pages/`, and `_drafts/`.
-- Infer collection names from Jekyll directory conventions.
-- Add `jekyll` to project creation SSG type options.
-- Add Jekyll-specific frontmatter schema inference coverage.
+- [x] `app/_lib/ssg-adapters.ts`: added `JekyllAdapter` implementing
+  `SsgAdapter`, restricted to `_posts/`, `_pages/`, and `_drafts/` (the three
+  directories named in this task's spec; other underscore-prefixed custom
+  Jekyll collections are intentionally out of scope for v0.2). Supports `.md`
+  and `.markdown` extensions. Collection names map directly from the
+  directory (`_posts` → `posts`, etc.).
+- [x] Extracted a shared `stripPrefix` helper (used by both `AstroAdapter` and
+  `JekyllAdapter`) that treats an empty `pathPrefix` as "repository root" —
+  fixing a latent bug where `AstroAdapter` couldn't handle a root-level
+  prefix, previously unreachable since nothing produced an empty prefix.
+- [x] `project-rules.ts`: added `jekyll` to `SSG_TYPES`, and gave
+  `normalizePathPrefix` an explicit `.` → `''` (repository root) convention —
+  needed because Jekyll's `_posts/`/`_pages/`/`_drafts/` live at the repo
+  root rather than under a nested content directory like Astro's
+  `src/content/`, and an empty text input can't be distinguished from
+  "untouched" (which still defaults to `src/content`, the common case).
+- [x] Added `jekyll` to the SSG select in `NewProjectDialog.tsx` and the
+  project settings page; added a "Use . if your posts live at the repository
+  root" hint to both pathPrefix fields.
+- [x] No changes needed to `schema-rules.ts` — frontmatter schema inference
+  is already SSG-agnostic (operates on raw frontmatter data, not file
+  layout); added Jekyll-shaped test coverage (`layout`, `categories`, `tags`,
+  a space-separated `date` with UTC offset) to confirm it infers correctly
+  without any Jekyll-specific code.
+- [x] Added 8 new adapter test cases (discovery, collection inference,
+  root vs. non-root prefix, extension/collection-dir rejection) and 2 new
+  `project-rules.test.ts` cases for the `.` convention and jekyll acceptance;
+  fixed a stale test that had asserted `jekyll` was unsupported.
+- [x] Live-verified end-to-end against a real public Jekyll repository
+  (`barryclark/jekyll-now`): connected with content folder `.` and SSG type
+  Jekyll, correctly discovered the one real post under `_posts/`, grouped
+  it under the "posts" collection, and opened it in the editor with
+  Jekyll-style frontmatter (`layout`, `title`) correctly rendered as
+  schema fields — zero console errors.
 
 Acceptance criteria:
 
@@ -642,8 +678,10 @@ Acceptance criteria:
 
 Verification:
 
-- Add adapter unit tests with sample Jekyll trees.
-- Run typecheck and tests.
+- `pnpm test` (plugin: 138/138), `pnpm typecheck`, `pnpm lint`,
+  `pnpm format:check`, and a full `pnpm build` all pass.
+- Live-verified in the dev server against a real public Jekyll repository
+  (see above).
 
 ### PLW-013 Add Image Upload
 

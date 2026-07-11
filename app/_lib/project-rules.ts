@@ -1,6 +1,6 @@
 export const PROJECT_ROLES = ['owner', 'editor', 'viewer'] as const;
 export const PROJECT_PROVIDERS = ['github'] as const;
-export const SSG_TYPES = ['astro'] as const;
+export const SSG_TYPES = ['astro', 'jekyll'] as const;
 export const METADATA_VISIBILITY = ['members_with_credentials', 'all_members'] as const;
 
 export type ProjectRole = (typeof PROJECT_ROLES)[number];
@@ -38,8 +38,18 @@ export function isSsgType(value: string): value is SsgType {
   return SSG_TYPES.includes(value as SsgType);
 }
 
+/**
+ * `.` is the explicit "repository root" convention — used by Jekyll projects,
+ * whose content lives in `_posts/`/`_pages/`/`_drafts/` at the repo root
+ * rather than under a nested content directory. An empty value still falls
+ * back to `src/content` (the common case, most existing/Astro projects)
+ * rather than root, since an empty text input is indistinguishable from
+ * "never touched" and root-by-default would be a surprising silent change
+ * for the existing Astro flow.
+ */
 export function normalizePathPrefix(value: string): string {
   const trimmed = value.trim().replace(/^\/+|\/+$/g, '');
+  if (trimmed === '.') return '';
   return trimmed || 'src/content';
 }
 

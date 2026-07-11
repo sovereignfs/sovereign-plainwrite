@@ -48,6 +48,28 @@ describe('project defaults', () => {
     expect(normalizePathPrefix('/content/blog/')).toBe('content/blog');
   });
 
+  it('treats "." as an explicit repository-root convention', () => {
+    expect(normalizePathPrefix('.')).toBe('');
+    expect(normalizePathPrefix(' . ')).toBe('');
+  });
+
+  it('accepts jekyll as a supported SSG type', () => {
+    expect(
+      projectInputDefaults({
+        branch: '',
+        pathPrefix: '.',
+        ssgType: 'jekyll',
+        metadataVisibility: '',
+        isPrivate: false,
+      }),
+    ).toEqual({
+      branch: 'main',
+      pathPrefix: '',
+      ssgType: 'jekyll',
+      metadataVisibility: 'all_members',
+    });
+  });
+
   it('normalizes create and update input defaults', () => {
     expect(
       projectInputDefaults({
@@ -68,7 +90,7 @@ describe('project defaults', () => {
   it('rejects unsupported SSG and metadata values', () => {
     expect(() =>
       projectInputDefaults({
-        ssgType: 'jekyll',
+        ssgType: 'hugo',
         metadataVisibility: '',
         isPrivate: false,
       }),

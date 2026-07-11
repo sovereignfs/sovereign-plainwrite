@@ -82,7 +82,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
                 <Input {...field} name="branch" defaultValue={project.branch} disabled={!userCanManage} />
               )}
             </FormField>
-            <FormField label="Path prefix">
+            <FormField label="Path prefix" hint="Use . if your posts live at the repository root.">
               {(field) => (
                 <Input
                   {...field}
@@ -96,6 +96,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
               {(field) => (
                 <Select {...field} name="ssgType" defaultValue={project.ssgType} disabled={!userCanManage}>
                   <option value="astro">Astro</option>
+                  <option value="jekyll">Jekyll</option>
                 </Select>
               )}
             </FormField>
