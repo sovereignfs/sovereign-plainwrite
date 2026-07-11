@@ -13,10 +13,17 @@ import {
 } from '../_lib/editor-rules';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ConflictReviewDialog } from './ConflictReviewDialog';
+import { RichTextBodyEditor } from './RichTextBodyEditor';
 import { StructuredFrontmatterFields } from './StructuredFrontmatterFields';
 import styles from './MarkdownEditor.module.css';
 
 const AUTOSAVE_IDLE_MS = 2000;
+const BODY_MODE_STORAGE_KEY = 'plainwrite:editor-body-mode';
+type BodyMode = 'write' | 'markdown' | 'preview';
+
+function isBodyMode(value: string | null): value is BodyMode {
+  return value === 'write' || value === 'markdown' || value === 'preview';
+}
 
 /**
  * assertNoPublishConflict (actions.ts) always throws with this exact
@@ -83,6 +90,10 @@ export function MarkdownEditor({
   const [message, setMessage] = useState(commitMessage ?? `Update ${path.split('/').at(-1) ?? path}`);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [conflictReviewOpen, setConflictReviewOpen] = useState(false);
+  // Starts at the same default on server and client (avoids a hydration
+  // mismatch from reading localStorage in the initializer) and is swapped
+  // to the writer's remembered preference right after mount instead.
+  const [bodyMode, setBodyModeState] = useState<BodyMode>('write');
   // Tracks the content as of the last successful save (manual or auto) —
   // NOT the originally-loaded content — so autosave correctly clears the
   // dirty flag instead of re-triggering itself and re-warning on unload
@@ -103,6 +114,16 @@ export function MarkdownEditor({
   );
   const previewHtml = useMemo(() => renderSafeMarkdownPreview(serializedContent), [serializedContent]);
   const isDirty = frontmatterYaml !== lastSaved.frontmatterYaml || body !== lastSaved.body;
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(BODY_MODE_STORAGE_KEY);
+    if (isBodyMode(stored)) setBodyModeState(stored);
+  }, []);
+
+  function setBodyMode(next: BodyMode) {
+    setBodyModeState(next);
+    window.localStorage.setItem(BODY_MODE_STORAGE_KEY, next);
+  }
 
   // Draft state lives in useState with no built-in persistence beyond this
   // component — closing the tab or refreshing loses unsaved edits silently
@@ -215,15 +236,37 @@ export function MarkdownEditor({
               <p className={styles.eyebrow}>Content</p>
               <h2 id="body-heading">Post</h2>
             </div>
-            <span>{editorStatusLabel(status, baseSha)}</span>
+            <div className={styles.bodyModeRow}>
+              <SegmentedControl
+                aria-label="Body editing mode"
+                value={bodyMode}
+                onChange={setBodyMode}
+                options={[
+                  { label: 'Write', value: 'write' },
+                  { label: 'Markdown', value: 'markdown' },
+                  { label: 'Preview', value: 'preview' },
+                ]}
+                size="sm"
+              />
+              <span>{editorStatusLabel(status, baseSha)}</span>
+            </div>
           </div>
-          <CodeTextarea
-            aria-label="Post content"
-            value={body}
-            onChange={(event) => setBody(event.currentTarget.value)}
-            rows={24}
-            readOnly={!userCanEdit}
-          />
+          {bodyMode === 'write' ? (
+            <RichTextBodyEditor content={body} onChange={setBody} readOnly={!userCanEdit} />
+          ) : bodyMode === 'markdown' ? (
+            <CodeTextarea
+              aria-label="Post content"
+              value={body}
+              onChange={(event) => setBody(event.currentTarget.value)}
+              rows={24}
+              readOnly={!userCanEdit}
+            />
+          ) : (
+            <div
+              className={styles.preview}
+              dangerouslySetInnerHTML={{ __html: previewHtml || '<p>Nothing to preview yet.</p>' }}
+            />
+          )}
         </section>
       </form>
 
@@ -325,19 +368,6 @@ export function MarkdownEditor({
             />
           </>
         ) : null}
-
-        <section className={styles.previewPanel} aria-labelledby="preview-heading">
-          <div className={styles.sectionHeader}>
-            <div>
-              <p className={styles.eyebrow}>Preview</p>
-              <h2 id="preview-heading">How it looks</h2>
-            </div>
-          </div>
-          <div
-            className={styles.preview}
-            dangerouslySetInnerHTML={{ __html: previewHtml || '<p>Nothing to preview yet.</p>' }}
-          />
-        </section>
       </aside>
     </div>
   );

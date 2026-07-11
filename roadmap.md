@@ -827,9 +827,8 @@ Phase 1 of the writer-first UI redesign proposed in
 `docs/adhoc/plainwrite-ui-redesign.md`: translate git/technical vocabulary to
 plain language across every existing screen, with no layout or data-model
 changes. See the doc's §3 jargon table and §8 phasing for the full plan.
-Phases 2–5 (navigation restructure, new-post/publish flow, conflict review,
-connect-a-site wizard) landed as PLW-020 through PLW-023; editor modes
-(phase 6) remain a follow-on, not yet assigned an ID.
+Phases 2–6 (navigation restructure, new-post/publish flow, conflict review,
+connect-a-site wizard, editor modes) landed as PLW-020 through PLW-024.
 
 Progress as of 2026-07-10:
 
@@ -1135,6 +1134,69 @@ Verification:
   `pnpm format:check`, and a full `pnpm build` all pass.
 - Live-verified in the dev server against a real public GitHub repository
   (see above).
+
+### ✅ PLW-024 Editor Modes (Write / Markdown / Preview)
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` (proposal), phase 6 of
+6.
+
+**Status:** ✅ Complete.
+
+Phase 6 of the writer-first UI redesign, and the last phase in the plan:
+replace the always-on raw-markdown textarea with three switchable body modes
+— Write (WYSIWYG rich text via TipTap), Markdown (the original raw textarea,
+unchanged), and Preview (the existing sanitized rendered-HTML view, promoted
+from an always-visible side panel to a mode). Builds on
+PLW-019/020/021/022/023. This also substantially fulfills the longer-standing
+PLW-011 backlog item (rich text markdown editor); image insertion remains
+tracked separately under PLW-013 since no upload capability exists yet.
+
+Progress as of 2026-07-11:
+
+- [x] Added `@tiptap/core`, `@tiptap/pm`, `@tiptap/react`,
+  `@tiptap/starter-kit`, and `tiptap-markdown` as plugin dependencies
+  (`@tiptap/starter-kit` v3 already bundles link support, so no separate
+  `@tiptap/extension-link` dependency was needed).
+- [x] `RichTextBodyEditor.tsx` (new): the Write-mode editor. Uses
+  `immediatelyRender: false` for Next.js SSR safety, and `Markdown.configure({
+  html: false })` — a deliberate security choice (not the library default) so
+  raw HTML in a post's source is never parsed into live DOM nodes, matching
+  `renderSafeMarkdownPreview`'s existing XSS-safety posture. Toolbar covers
+  bold, italic, H1/H2, bullet/numbered lists, blockquote, link
+  (`window.prompt`-based), and inline code.
+- [x] `MarkdownEditor.tsx`: added a `bodyMode` (`write` / `markdown` /
+  `preview`) `SegmentedControl` above the body panel; the previously
+  always-visible sidebar preview panel was removed in favor of Preview being
+  one of the three modes. Mode preference persists to `localStorage`,
+  hydration-safe per the CLAUDE.md pattern (state initializes to `'write'` on
+  both server and client; the real stored value is only read in a
+  `useEffect` after mount).
+- [x] Mode switches unmount/remount `RichTextBodyEditor` rather than
+  reactively syncing it: TipTap's `content` prop is only read once at mount,
+  so switching away from Write mode fully destroys the editor instance and
+  switching back remounts fresh from whatever markdown is current at that
+  moment — correct bidirectional sync without a manual sync effect.
+- [x] Live-verified round-trip fidelity in the dev server against a real
+  post: typed a new sentence and toggled formatting in Write mode, confirmed
+  the exact edit and markdown syntax (`*emphasis*`, `## heading`) appeared
+  correctly in Markdown mode, confirmed correct rendered HTML in Preview
+  mode, then switched back to Write and confirmed no data loss — with zero
+  console errors throughout.
+
+Acceptance criteria:
+
+- Non-technical users can write headings, links, lists, emphasis, and
+  blockquotes without writing Markdown syntax.
+- Markdown output remains stable across mode switches (no data loss for
+  supported syntax).
+
+Verification:
+
+- `pnpm test` (plugin: 129/129), `pnpm typecheck`, `pnpm lint`,
+  `pnpm format:check`, and a full `pnpm build` all pass.
+- Live-verified in the dev server: Write → Markdown → Preview → Write
+  round-trip with a real edit, confirmed byte-for-byte in each mode, zero
+  console errors.
 
 ## Future Backlog
 

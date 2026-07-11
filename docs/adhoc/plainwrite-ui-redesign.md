@@ -1,7 +1,7 @@
 # Plainwrite UI redesign — writer-first simplification
 
-**Status:** Phases 1–5 complete — see PLW-019 through PLW-023 in
-`roadmap.md`. Phase 6 (editor modes) remains a proposal.
+**Status:** Phases 1–6 complete — see PLW-019 through PLW-024 in
+`roadmap.md`. All phases of this proposal have landed.
 **Date:** 2026-07-10
 **Wireframe assets:** [`docs/adhoc/plainwrite-ui-redesign/`](./plainwrite-ui-redesign/) (SVG, one per screen)
 
@@ -237,7 +237,8 @@ Each phase is shippable on its own and roughly maps to one roadmap task.
    lookup: default branch + likely content path) followed by a confirmation
    step, replacing the single-step new-project form. Public repos only;
    private repos fall back to the original manual-entry flow. (PLW-023)
-6. **Editor modes** — mode switcher, Preview mode (cheap), then Write mode
-   (rich-text dependency — the largest single work item; can ship last).
+6. **Editor modes** ✅ — Write (TipTap rich text), Markdown (original raw
+   textarea), and Preview (promoted from an always-visible side panel to a
+   mode) as a switchable `SegmentedControl`. (PLW-024)
 
 Image upload and multi-writer presence are follow-on tasks outside this epic.

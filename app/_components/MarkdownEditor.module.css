@@ -7,22 +7,27 @@
 
 .editorForm,
 .sidePanel,
-.commitPanel,
-.previewPanel {
+.commitPanel {
   display: grid;
   gap: var(--sv-space-4);
 }
 
 .frontmatterPanel,
 .bodyPanel,
-.commitPanel,
-.previewPanel {
+.commitPanel {
   display: grid;
   gap: var(--sv-space-3);
   border: 1px solid var(--sv-color-border);
   border-radius: var(--sv-radius-md);
   background: var(--sv-color-surface);
   padding: var(--sv-space-4);
+}
+
+.bodyModeRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
 }
 
 .sidePanel {
