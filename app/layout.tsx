@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { PlainwriteSidebar } from './_components/PlainwriteSidebar';
 import { registerDataContracts } from './_lib/data-contracts';
 import { registerPortabilityHandlers } from './_lib/portability';
 import styles from './layout.module.css';
@@ -17,10 +16,9 @@ export default async function PlainwriteLayout({ children }: { children: ReactNo
     // a registration failure here must not block Plainwrite's own UI.
   }
 
-  return (
-    <div className={styles.shell}>
-      <PlainwriteSidebar />
-      <main className={styles.content}>{children}</main>
-    </div>
-  );
+  // No plugin-local sidebar: the runtime shell already provides the top-level
+  // app rail, and per-screen back navigation is a plain breadcrumb (BackLink)
+  // rather than a persistent second side rail. Each page owns its own
+  // max-width and centering.
+  return <main className={styles.content}>{children}</main>;
 }

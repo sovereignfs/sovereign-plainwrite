@@ -19,6 +19,7 @@ import {
 } from '../../_lib/actions';
 import { formatProjectRole } from '../../_lib/copy';
 import { canEditProject, canManageProject } from '../../_lib/project-rules';
+import { BackLink } from '../../_components/BackLink';
 import { FormCheckbox } from '../../_components/FormCheckbox';
 import { InviteMemberForm } from '../../_components/InviteMemberForm';
 import styles from './settings.module.css';
@@ -41,6 +42,7 @@ export default async function ProjectSettingsPage({ params }: SettingsPageProps)
 
   return (
     <div className={styles.page}>
+      <BackLink href={`/plainwrite/${projectId}`}>Back to posts</BackLink>
       <PageHeader
         title="Site settings"
         description={`People and site settings for ${project.name}.`}

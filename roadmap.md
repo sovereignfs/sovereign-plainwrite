@@ -1302,6 +1302,49 @@ Verification:
   round-trip with a real edit, confirmed byte-for-byte in each mode, zero
   console errors.
 
+### ✅ PLW-025 Remove The Plainwrite Sidebar
+
+**Spec refs:** `docs/adhoc/plainwrite-ui-redesign.md` §4 (screens).
+
+**Status:** ✅ Complete.
+
+The redesign wireframes (§4) show every screen as a single full-width
+panel with in-panel navigation — none has a Plainwrite-local side rail. The
+`PlainwriteSidebar` shipped during the earlier navigation work (PLW-020) was
+an implementation deviation: it nested a second sidebar inside the runtime
+shell's own app rail, duplicated context already in each page's header
+(site name, repo, editing path), and on mobile stacked ~500px of
+"Back to sites / Current site / Posts / Settings / Editing" chrome above the
+actual work surface. This brings the implementation in line with the spec.
+
+Progress as of 2026-07-11:
+
+- [x] Deleted `PlainwriteSidebar.tsx` / `.module.css`; `layout.tsx` now
+  renders just the content `<main>` (the runtime shell already provides the
+  top-level app rail). Removed the now-dead `getProjectNavigation` action
+  (the sidebar was its only caller).
+- [x] Replaced the sidebar's navigation with a one-level-up breadcrumb —
+  `BackLink` (new, plugin-local: the muted "← …" affordance the editor
+  wireframe shows top-left). Content home → "Back to sites"; settings →
+  "Back to posts"; the editor keeps its existing "Back to posts". Kept
+  plugin-local rather than in `@sovereignfs/ui` for now (a thin styled
+  `Link`; a back/breadcrumb primitive is a reasonable future DS candidate,
+  but this avoids a cross-repo change to ship the cleanup).
+- [x] Centered each page's existing `max-width: 1040px` column
+  (`margin-inline: auto`) now that the freed sidebar width would otherwise
+  leave content hugging the left on wide screens; the editor stays
+  full-width (its two-column layout wants the room).
+- [x] Live-verified in the dev server at desktop and mobile widths: sidebar
+  gone on Sites / content home / settings / editor, both back links
+  navigate correctly, mobile leads straight with the content instead of
+  stacked nav, zero console errors.
+
+Verification:
+
+- `pnpm test` (plugin: 156/156), `pnpm typecheck`, `pnpm lint`,
+  `pnpm format:check`, and a full `pnpm build --force` all pass.
+- Live-verified across screens and breakpoints (see above).
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

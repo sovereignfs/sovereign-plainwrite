@@ -1,6 +1,7 @@
 .page {
   display: grid;
   gap: var(--sv-space-6);
+  margin-inline: auto;
   max-width: 1040px;
 }
 

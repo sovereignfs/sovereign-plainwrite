@@ -8,6 +8,7 @@ import {
   stageContentDeletion,
   syncProjectContent,
 } from '../_lib/actions';
+import { BackLink } from '../_components/BackLink';
 import { NewPostDialog } from '../_components/NewPostDialog';
 import { PublishAllForm } from '../_components/PublishAllForm';
 import { SyncContentForm } from '../_components/SyncContentForm';
@@ -66,6 +67,7 @@ export default async function ProjectPage({ params, searchParams }: ProjectPageP
 
   return (
     <div className={styles.page}>
+      <BackLink href="/plainwrite">Back to sites</BackLink>
       <PageHeader
         title={project.name}
         description={`${repositoryLabel} · ${project.branch}`}

@@ -1,0 +1,13 @@
+.backLink {
+  align-items: center;
+  color: var(--sv-color-text-secondary);
+  display: inline-flex;
+  font-size: var(--sv-font-size-sm);
+  gap: var(--sv-space-1);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.backLink:hover {
+  color: var(--sv-color-text-primary);
+}

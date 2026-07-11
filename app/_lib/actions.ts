@@ -465,18 +465,6 @@ export async function getGitHubOAuthStatus(projectId: string): Promise<GitHubOAu
   }
 }
 
-export async function getProjectNavigation(projectId: string) {
-  const project = await getProject(projectId);
-  return {
-    id: project.id,
-    name: project.name,
-    repoOwner: project.repoOwner,
-    repoName: project.repoName,
-    archivedAt: project.archivedAt,
-    currentUserRole: project.currentUserRole,
-  };
-}
-
 export async function listPublishEvents(projectId: string): Promise<PublishEventSummary[]> {
   const { db, userId, tenantId } = await getContext();
   await requireProjectRole(db, tenantId, projectId, userId, 'viewer');
