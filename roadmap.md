@@ -1530,6 +1530,62 @@ the auditor test account's email to work around it). The change is bounded
 by min-height floors, so it cannot regress below the current editor size;
 visual confirmation pending on a running instance with a valid session.
 
+### ✅ PLW-031 Switch To An Isolated SQLite Database
+
+**Spec refs:** `docs/plugin-database.md` (platform doc — isolated vs. shared).
+
+**Status:** ✅ Complete.
+
+Plainwrite moved from `"database": "shared"` (writing `plainwrite_*`-prefixed
+tables into the platform's own database) to a dedicated isolated store,
+explicitly pinned to SQLite regardless of platform dialect. Table names are
+unchanged (still `plainwrite_*`) — the isolated-mode "no prefix required"
+allowance is optional, not mandatory, and keeping them avoided touching
+`schema.ts`, every query site, and the test suite for a rename with no
+functional benefit.
+
+Progress as of 2026-07-12:
+
+- [x] `manifest.json`: `"database": "shared"` → `"database": { "isolation":
+  "isolated", "dialect": "sqlite" }` (the object form, not the bare
+  `"isolated"` string) — pins SQLite explicitly rather than inheriting
+  whatever the platform happens to run, per the actual ask ("a SQLite
+  database for only the plugin").
+- [x] No application code changes anywhere — `sdk.db.getClient()` routes
+  transparently based on the manifest's `database` field; this is the whole
+  point of the abstraction (`docs/plugin-database.md`'s internals section).
+  Confirmed by an unchanged `pnpm test`/`pnpm typecheck`/`pnpm lint` pass.
+- [x] **Existing local dev data was migrated, not discarded.** Switching
+  modes only affects where a *newly* provisioned store starts (empty); it
+  does not move data already sitting in the platform DB's `plainwrite_*`
+  tables. Verified real data existed first (4 projects — Astro Paper, Audit
+  Blog, Jekyll Now, Sphere; 33 file-cache rows; 6 drafts; 6 collection
+  schemas), then: started the dev server once so `instrumentation.ts`
+  provisioned `data/plugins/fs.sovereign.plainwrite.db` and ran both
+  migrations fresh against it (confirmed identical schema, incl.
+  `image_upload_path` from PLW-013), stopped the server, `PRAGMA
+  wal_checkpoint(FULL)` on both databases, then copied every row
+  (`ATTACH` + `INSERT INTO iso.<table> SELECT * FROM main.<table>`) from
+  the old shared tables into the new isolated ones. Row counts verified
+  identical on both sides post-copy. The old shared-mode tables in
+  `data/sovereign.db` were deliberately left in place (not dropped) as a
+  rollback fallback — harmless orphaned tables now that the app reads from
+  the isolated store instead.
+- [x] Live-verified in the dev server: logged in, Sites page shows all
+  three of the auditor account's projects (Astro Paper, Audit Blog, Jekyll
+  Now) with correct pipeline counts; opened Audit Blog and confirmed all 6
+  posts with correct per-file Writing/Live status, matching pre-migration
+  state exactly. Zero console errors.
+
+Acceptance criteria:
+
+- Plugin manifest declares an isolated SQLite store.
+- No data loss for existing local projects/drafts/file-cache/schemas.
+
+Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
+`pnpm format:check` (manifest.json), and a full `pnpm build` all pass.
+Live-verified in the dev server (see above).
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.
