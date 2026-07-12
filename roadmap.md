@@ -1618,6 +1618,38 @@ fixed upstream.
 Verification: docs-only change — `pnpm test` (156/156), `pnpm lint`,
 `pnpm format:check` unaffected/pass.
 
+### ✅ PLW-033 Toast Feedback For Editor Actions
+
+**Status:** ✅ Complete.
+
+Clicking Save, Ready to publish, Discard changes, or Upload image gave no
+confirmation that the click actually did anything beyond autosave's own
+status line — reported as confusing after a real end-to-end test.
+
+- [x] Wired the design system's existing `useToast()`/`ToastProvider`
+  (already mounted by the runtime shell, no platform change needed) into
+  `MarkdownEditor.tsx` for Save, Ready to publish, Publish, Discard
+  changes, and Upload image — success and failure both surface a toast.
+- [x] Save and Ready to publish previously called their server actions
+  directly as a raw form `action`/`formAction` (void-returning, throw on
+  failure) with no success feedback and a hard crash to the route's error
+  boundary on failure. Wrapped both in local `useActionState` handlers
+  (mirroring the existing Publish button) so failures resolve to a toast
+  instead of crashing, and `lastSaved` (the autosave dirty-check baseline)
+  now only updates after a confirmed success rather than optimistically at
+  submit time.
+- [x] Publish's existing inline error box (with the conflict "Review
+  changes" affordance) is left as the source of truth for publish
+  failures — the failure toast is skipped there to avoid duplicating it;
+  a success toast was added since publish previously had no success
+  signal at all.
+- [x] Confirmed the existing "Change note" field (right above the action
+  buttons) already lets writers edit the exact string used as the GitHub
+  commit message — set there and saved on Save/Ready to publish, then
+  read straight from the draft row at Publish time. No new field needed.
+
+Verification: `pnpm typecheck` and `pnpm lint` pass on the changed file.
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

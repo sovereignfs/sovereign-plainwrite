@@ -2,7 +2,14 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
-import { Button, CodeTextarea, FormField, Input, SegmentedControl } from '@sovereignfs/ui';
+import {
+  Button,
+  CodeTextarea,
+  FormField,
+  Input,
+  SegmentedControl,
+  useToast,
+} from '@sovereignfs/ui';
 import type { ActionResult, ImageUploadResult } from '../_lib/actions';
 import { formatPostStatus } from '../_lib/copy';
 import type { CollectionSchemaField } from '../_lib/schema-rules';
@@ -90,7 +97,9 @@ export function MarkdownEditor({
   const [fieldData, setFieldData] = useState<Record<string, unknown>>(parsed.data);
   const [mode, setMode] = useState<FrontmatterMode>(schemaFields.length > 0 ? 'structured' : 'raw');
   const [body, setBody] = useState(parsed.body);
-  const [message, setMessage] = useState(commitMessage ?? `Update ${path.split('/').at(-1) ?? path}`);
+  const [message, setMessage] = useState(
+    commitMessage ?? `Update ${path.split('/').at(-1) ?? path}`,
+  );
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [conflictReviewOpen, setConflictReviewOpen] = useState(false);
   // Starts at the same default on server and client (avoids a hydration
@@ -106,10 +115,78 @@ export function MarkdownEditor({
     body: parsed.body,
   });
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('idle');
+  const toast = useToast();
+
+  // Save / Ready to publish both call through the same server actions the
+  // page passes down (void-returning, throw on failure). Wrapped here so a
+  // click gets a toast either way instead of silently doing nothing on
+  // success or crashing to the route's error boundary on failure — the
+  // wrapping stays local to this component so actions.ts keeps its existing
+  // void/throw contract (also used directly by autosave above).
+  async function runSave(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+    try {
+      await saveAction(formData);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'Failed to save.' };
+    }
+  }
+  async function runCommit(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+    try {
+      await commitAction(formData);
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Failed to mark ready to publish.',
+      };
+    }
+  }
+  const [saveState, saveFormAction, savePending] = useActionState<ActionResult | null, FormData>(
+    runSave,
+    null,
+  );
+  const [commitState, commitFormAction, commitPending] = useActionState<
+    ActionResult | null,
+    FormData
+  >(runCommit, null);
   const [publishState, publishFormAction, publishPending] = useActionState<
     ActionResult | null,
     FormData
   >(publishAction, null);
+
+  useEffect(() => {
+    if (!saveState) return;
+    if (saveState.ok) {
+      setLastSaved({ frontmatterYaml, body });
+      toast.show({ title: 'Draft saved', category: 'success' });
+    } else {
+      toast.show({ title: "Couldn't save draft", message: saveState.error, category: 'error' });
+    }
+  }, [saveState]);
+
+  useEffect(() => {
+    if (!commitState) return;
+    if (commitState.ok) {
+      setLastSaved({ frontmatterYaml, body });
+      toast.show({ title: 'Ready to publish', category: 'success' });
+    } else {
+      toast.show({
+        title: "Couldn't mark ready to publish",
+        message: commitState.error,
+        category: 'error',
+      });
+    }
+  }, [commitState]);
+
+  useEffect(() => {
+    if (!publishState) return;
+    if (publishState.ok) {
+      toast.show({ title: 'Published', category: 'success' });
+    }
+    // Failure already renders inline (with the "Review changes" affordance
+    // for conflicts) — the toast would just duplicate that, so skip it here.
+  }, [publishState]);
   // The live TipTap instance, handed up by RichTextBodyEditor (only mounted
   // in Write mode) — needed to run its `setImage` command from the shared
   // upload button below, which lives outside that component.
@@ -127,7 +204,10 @@ export function MarkdownEditor({
     () => serializeMarkdownDocument(frontmatterYaml, body),
     [frontmatterYaml, body],
   );
-  const previewHtml = useMemo(() => renderSafeMarkdownPreview(serializedContent), [serializedContent]);
+  const previewHtml = useMemo(
+    () => renderSafeMarkdownPreview(serializedContent),
+    [serializedContent],
+  );
   const isDirty = frontmatterYaml !== lastSaved.frontmatterYaml || body !== lastSaved.body;
 
   useEffect(() => {
@@ -213,8 +293,10 @@ export function MarkdownEditor({
       const result = await uploadImageAction(formData);
       if (!result.ok) {
         setImageUploadError(result.error);
+        toast.show({ title: "Couldn't upload image", message: result.error, category: 'error' });
         return;
       }
+      toast.show({ title: 'Image uploaded', category: 'success' });
       if (bodyMode === 'write') {
         richEditor?.chain().focus().setImage({ src: result.url, alt: result.alt }).run();
         return;
@@ -246,176 +328,172 @@ export function MarkdownEditor({
           publish buttons + change note reach it via form="…"). This lets the
           right column group Current state over Details in its own flow,
           independent of the (often much taller) Post column. */}
-      <form
-        id="plainwrite-editor-form"
-        className={styles.formContents}
-        action={saveAction}
-        onSubmit={() => setLastSaved({ frontmatterYaml, body })}
-      >
+      <form id="plainwrite-editor-form" className={styles.formContents} action={saveFormAction}>
         <input type="hidden" name="baseSha" value={baseSha ?? ''} />
         <input type="hidden" name="content" value={serializedContent} />
       </form>
 
       <section className={styles.bodyPanel} aria-labelledby="body-heading">
-          <div className={styles.sectionHeader}>
-            <div>
-              <p className={styles.eyebrow}>Content</p>
-              <h2 id="body-heading">Post</h2>
-            </div>
-            <div className={styles.bodyModeRow}>
-              <SegmentedControl
-                aria-label="Body editing mode"
-                value={bodyMode}
-                onChange={setBodyMode}
-                options={[
-                  { label: 'Write', value: 'write' },
-                  { label: 'Markdown', value: 'markdown' },
-                  { label: 'Preview', value: 'preview' },
-                ]}
-                size="sm"
-              />
-              {userCanEdit ? (
-                <>
-                  <input
-                    ref={imageFileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className={styles.hiddenInput}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = '';
-                      if (file) void handleImageFileSelected(file);
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={bodyMode === 'preview' || imageUploadPending}
-                    onClick={() => imageFileInputRef.current?.click()}
-                  >
-                    {imageUploadPending ? 'Uploading…' : 'Upload image'}
-                  </Button>
-                </>
-              ) : null}
-            </div>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Content</p>
+            <h2 id="body-heading">Post</h2>
           </div>
-          {imageUploadError ? <p className={styles.imageUploadError}>{imageUploadError}</p> : null}
-          <div className={styles.editorArea}>
-            {bodyMode === 'write' ? (
-              <RichTextBodyEditor
-                content={body}
-                onChange={setBody}
-                readOnly={!userCanEdit}
-                onEditorReady={setRichEditor}
-              />
-            ) : bodyMode === 'markdown' ? (
-              <CodeTextarea
-                className={styles.markdownFill}
-                aria-label="Post content"
-                value={body}
-                onChange={(event) => {
-                  bodyTextareaElRef.current = event.currentTarget;
-                  setBody(event.currentTarget.value);
-                }}
-                onFocus={(event) => {
-                  bodyTextareaElRef.current = event.currentTarget;
-                }}
-                rows={24}
-                readOnly={!userCanEdit}
-              />
-            ) : (
-              <div
-                className={styles.preview}
-                dangerouslySetInnerHTML={{ __html: previewHtml || '<p>Nothing to preview yet.</p>' }}
-              />
-            )}
-          </div>
-        </section>
-
-        <aside className={styles.sideCol}>
-          <section className={styles.currentState} aria-label="Publish controls">
-            <div className={styles.currentStateHead}>
-              <p className={styles.eyebrow}>Current state</p>
-              <h2>{editorStatusLabel(status, baseSha)}</h2>
-              <p className={styles.statusHint}>Changes stay private until you publish them.</p>
-              {userCanEdit && autosaveState !== 'idle' ? (
-                <p
-                  className={styles.autosaveStatus}
-                  role={autosaveState === 'error' ? 'alert' : undefined}
-                >
-                  {autosaveLabel(autosaveState)}
-                </p>
-              ) : null}
-            </div>
-
+          <div className={styles.bodyModeRow}>
+            <SegmentedControl
+              aria-label="Body editing mode"
+              value={bodyMode}
+              onChange={setBodyMode}
+              options={[
+                { label: 'Write', value: 'write' },
+                { label: 'Markdown', value: 'markdown' },
+                { label: 'Preview', value: 'preview' },
+              ]}
+              size="sm"
+            />
             {userCanEdit ? (
               <>
-                <div className={styles.actions}>
-                  <Button type="submit" form="plainwrite-editor-form">
-                    Save
-                  </Button>
-                  <Button
-                    type="submit"
-                    form="plainwrite-editor-form"
-                    formAction={commitAction}
-                    variant="secondary"
-                  >
-                    Ready to publish
-                  </Button>
-                  <form action={publishFormAction}>
-                    <Button
-                      type="submit"
-                      variant="secondary"
-                      disabled={status !== 'committed' || publishPending}
-                    >
-                      {publishPending ? 'Publishing…' : 'Publish'}
-                    </Button>
-                  </form>
-                </div>
-                <FormField label="Change note" id="commitMessage">
-                  {(field) => (
-                    <Input
-                      {...field}
-                      form="plainwrite-editor-form"
-                      name="commitMessage"
-                      value={message}
-                      onChange={(event) => setMessage(event.currentTarget.value)}
-                      disabled={!userCanEdit}
-                    />
-                  )}
-                </FormField>
-                <div className={styles.discardRow}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={status === 'unmodified'}
-                    onClick={() => setDiscardConfirmOpen(true)}
-                  >
-                    Discard changes
-                  </Button>
-                </div>
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className={styles.hiddenInput}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (file) void handleImageFileSelected(file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={bodyMode === 'preview' || imageUploadPending}
+                  onClick={() => imageFileInputRef.current?.click()}
+                >
+                  {imageUploadPending ? 'Uploading…' : 'Upload image'}
+                </Button>
               </>
             ) : null}
+          </div>
+        </div>
+        {imageUploadError ? <p className={styles.imageUploadError}>{imageUploadError}</p> : null}
+        <div className={styles.editorArea}>
+          {bodyMode === 'write' ? (
+            <RichTextBodyEditor
+              content={body}
+              onChange={setBody}
+              readOnly={!userCanEdit}
+              onEditorReady={setRichEditor}
+            />
+          ) : bodyMode === 'markdown' ? (
+            <CodeTextarea
+              className={styles.markdownFill}
+              aria-label="Post content"
+              value={body}
+              onChange={(event) => {
+                bodyTextareaElRef.current = event.currentTarget;
+                setBody(event.currentTarget.value);
+              }}
+              onFocus={(event) => {
+                bodyTextareaElRef.current = event.currentTarget;
+              }}
+              rows={24}
+              readOnly={!userCanEdit}
+            />
+          ) : (
+            <div
+              className={styles.preview}
+              dangerouslySetInnerHTML={{ __html: previewHtml || '<p>Nothing to preview yet.</p>' }}
+            />
+          )}
+        </div>
+      </section>
 
-            {publishState && !publishState.ok ? (
-              <div className={styles.feedbackError} role="status" aria-live="polite">
-                <p>{publishState.error}</p>
-                {isConflictError(publishState.error) ? (
-                  <button
-                    type="button"
-                    className={styles.reviewChangesLink}
-                    onClick={() => setConflictReviewOpen(true)}
-                  >
-                    Review changes
-                  </button>
-                ) : null}
-              </div>
+      <aside className={styles.sideCol}>
+        <section className={styles.currentState} aria-label="Publish controls">
+          <div className={styles.currentStateHead}>
+            <p className={styles.eyebrow}>Current state</p>
+            <h2>{editorStatusLabel(status, baseSha)}</h2>
+            <p className={styles.statusHint}>Changes stay private until you publish them.</p>
+            {userCanEdit && autosaveState !== 'idle' ? (
+              <p
+                className={styles.autosaveStatus}
+                role={autosaveState === 'error' ? 'alert' : undefined}
+              >
+                {autosaveLabel(autosaveState)}
+              </p>
             ) : null}
-          </section>
+          </div>
 
-          <section className={styles.frontmatterPanel} aria-labelledby="frontmatter-heading">
+          {userCanEdit ? (
+            <>
+              <div className={styles.actions}>
+                <Button type="submit" form="plainwrite-editor-form" disabled={savePending}>
+                  {savePending ? 'Saving…' : 'Save'}
+                </Button>
+                <Button
+                  type="submit"
+                  form="plainwrite-editor-form"
+                  formAction={commitFormAction}
+                  variant="secondary"
+                  disabled={commitPending}
+                >
+                  {commitPending ? 'Marking ready…' : 'Ready to publish'}
+                </Button>
+                <form action={publishFormAction}>
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    disabled={status !== 'committed' || publishPending}
+                  >
+                    {publishPending ? 'Publishing…' : 'Publish'}
+                  </Button>
+                </form>
+              </div>
+              <FormField label="Change note" id="commitMessage">
+                {(field) => (
+                  <Input
+                    {...field}
+                    form="plainwrite-editor-form"
+                    name="commitMessage"
+                    value={message}
+                    onChange={(event) => setMessage(event.currentTarget.value)}
+                    disabled={!userCanEdit}
+                  />
+                )}
+              </FormField>
+              <div className={styles.discardRow}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={status === 'unmodified'}
+                  onClick={() => setDiscardConfirmOpen(true)}
+                >
+                  Discard changes
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {publishState && !publishState.ok ? (
+            <div className={styles.feedbackError} role="status" aria-live="polite">
+              <p>{publishState.error}</p>
+              {isConflictError(publishState.error) ? (
+                <button
+                  type="button"
+                  className={styles.reviewChangesLink}
+                  onClick={() => setConflictReviewOpen(true)}
+                >
+                  Review changes
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        <section className={styles.frontmatterPanel} aria-labelledby="frontmatter-heading">
           <div className={styles.sectionHeader}>
             <div>
               <p className={styles.eyebrow}>Metadata</p>
@@ -465,7 +543,15 @@ export function MarkdownEditor({
             onCancel={() => setDiscardConfirmOpen(false)}
             onConfirm={() => {
               setDiscardConfirmOpen(false);
-              void discardAction();
+              Promise.resolve(discardAction())
+                .then(() => toast.show({ title: 'Changes discarded', category: 'success' }))
+                .catch((error: unknown) =>
+                  toast.show({
+                    title: "Couldn't discard changes",
+                    message: error instanceof Error ? error.message : undefined,
+                    category: 'error',
+                  }),
+                );
             }}
           />
           <ConflictReviewDialog
