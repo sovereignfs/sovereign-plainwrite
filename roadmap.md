@@ -1586,6 +1586,38 @@ Verification: `pnpm test` (156/156), `pnpm typecheck`, `pnpm lint`,
 `pnpm format:check` (manifest.json), and a full `pnpm build` all pass.
 Live-verified in the dev server (see above).
 
+### ✅ PLW-032 Document The SOVEREIGN_VAULT_KEY Deployment Requirement
+
+**Status:** ✅ Complete (docs only).
+
+Connecting a GitHub PAT failed live on a self-hosted instance with
+`SOVEREIGN_VAULT_KEY is required before sdk.secrets can store or read
+secret values.` — traced to two separate gaps: (1) nothing in Plainwrite's
+own docs named `SOVEREIGN_VAULT_KEY` as a real deployment requirement, and
+(2) the variable is still missing from the platform's own
+`docker-compose.prod.yml` `environment:` block as of the latest released
+tag (`v0.19.3`), so setting it in `.env` alone has no effect until that's
+fixed upstream.
+
+- [x] Added a "Deployment requirements" section to `README.md` naming the
+  exact failure mode, why it's easy to miss (boots fine without it; only
+  the credential-connect flow breaks), and cross-references to the
+  platform's `docs/self-hosting.md`/`.env.example` and the self-hosting
+  infra repos' compose-gap workaround.
+- [x] Filed the platform-side fix (wiring `SOVEREIGN_VAULT_KEY` into
+  `docker-compose.prod.yml`) and doc updates
+  (`docs/self-hosting.md`/`.env.example`) as a separate sovereign PR —
+  tracked there, not duplicated here.
+- [x] Updated both self-hosting infra repos
+  (`openfs-infra`/`sovereign-infra`)'s "Known sovereign compose gaps"
+  section: retired four previously-listed gaps confirmed fixed as of
+  `v0.19.3` (`AUTH_WEBAUTHN_*`, `LOG_LEVEL`, `VAPID_*`,
+  `NOTIFICATION_TRANSPORT`/`REDIS_URL`), and added `SOVEREIGN_VAULT_KEY`
+  as the one gap still live, with the manual patch/override workaround.
+
+Verification: docs-only change — `pnpm test` (156/156), `pnpm lint`,
+`pnpm format:check` unaffected/pass.
+
 ## Future Backlog
 
 These items are intentionally outside v1.0 unless reprioritized.

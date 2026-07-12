@@ -67,6 +67,34 @@ Not implemented yet:
 
 - Pull-request publishing and structured conflict-resolution UI.
 
+## Deployment requirements
+
+Plainwrite stores connected GitHub credentials (both OAuth tokens and
+personal access tokens) through the platform's plugin secret vault
+(`sdk.secrets`), never in its own tables. That vault requires the platform
+operator to set **`SOVEREIGN_VAULT_KEY`** (a 32-byte key, `openssl rand
+-base64 32`) in the Sovereign instance's environment.
+
+**Without it, connecting a site fails** at "Connect using a token" /
+"Connect GitHub" with:
+
+```
+SOVEREIGN_VAULT_KEY is required before sdk.secrets can store or read secret values.
+```
+
+This surfaces as a runtime error on first use, not as a startup failure —
+the instance boots and runs fine without `SOVEREIGN_VAULT_KEY` set; only the
+credential-connect flow breaks, which makes it easy to miss until a user
+hits it live. See the platform's `docs/self-hosting.md` (`SOVEREIGN_VAULT_KEY`
+row) and `.env.example` for the full variable reference. If you're
+self-hosting via `sovereign-infra`/`openfs-infra`, add `SOVEREIGN_VAULT_KEY`
+to `apps/sovereign/.env` alongside `AUTH_SECRET`/`SOVEREIGN_ADMIN_KEY` before
+your first deploy — **and check that infra repo's "Known sovereign compose
+gaps" section**: as of platform `v0.19.3`, `SOVEREIGN_VAULT_KEY` is still
+missing from `docker-compose.prod.yml`'s `environment:` block upstream, so
+setting it in `.env` alone isn't enough yet — it needs the documented
+compose patch/override too, until a platform release ships with the fix.
+
 ## GitHub credentials
 
 Each user connects their own GitHub credential per project from **Project
