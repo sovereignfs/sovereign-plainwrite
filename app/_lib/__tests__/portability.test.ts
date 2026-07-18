@@ -1,9 +1,16 @@
 import { getTableName, type Table } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DeletionContext, ExportContext, ImportContext, PluginExportSection } from '@sovereignfs/sdk';
+import type {
+  DeletionContext,
+  ExportContext,
+  ImportContext,
+  PluginExportSection,
+} from '@sovereignfs/sdk';
 
 type Row = Record<string, unknown>;
-type Condition = { kind: 'eq'; key: string; value: unknown } | { kind: 'and'; conditions: Condition[] };
+type Condition =
+  | { kind: 'eq'; key: string; value: unknown }
+  | { kind: 'and'; conditions: Condition[] };
 
 function toCamel(snake: string): string {
   return snake.replace(/_([a-z0-9])/g, (_match, c: string) => c.toUpperCase());
@@ -32,7 +39,9 @@ function matches(row: Row, condition?: Condition): boolean {
   return condition.conditions.every((c) => matches(row, c));
 }
 
-const capturedExporter = { fn: null as ((ctx: ExportContext) => Promise<PluginExportSection>) | null };
+const capturedExporter = {
+  fn: null as ((ctx: ExportContext) => Promise<PluginExportSection>) | null,
+};
 const capturedImporter = {
   fn: null as ((section: PluginExportSection, ctx: ImportContext) => Promise<void>) | null,
 };
@@ -252,7 +261,11 @@ describe('portability export', () => {
       },
     ];
 
-    const section = await capturedExporter.fn?.({ userId: 'user-1', tenantId: 't1' });
+    const section = await capturedExporter.fn?.({
+      userId: 'user-1',
+      tenantId: 't1',
+      options: { includeFiles: true },
+    });
 
     expect(section?.pluginId).toBe('fs.sovereign.plainwrite');
     expect(section?.schemaVersion).toBe(1);
@@ -316,9 +329,24 @@ describe('portability import', () => {
             createdAt: 10,
           },
         ],
-        schemas: [{ projectId: 'owned-1', collection: 'blog', schemaJson: '[]', inferredAt: 5, isManual: false }],
+        schemas: [
+          {
+            projectId: 'owned-1',
+            collection: 'blog',
+            schemaJson: '[]',
+            inferredAt: 5,
+            isManual: false,
+          },
+        ],
         fileCache: [
-          { projectId: 'owned-1', path: 'src/content/a.md', collection: null, filename: 'a.md', sha: 'sha1', lastSyncedAt: 6 },
+          {
+            projectId: 'owned-1',
+            path: 'src/content/a.md',
+            collection: null,
+            filename: 'a.md',
+            sha: 'sha1',
+            lastSyncedAt: 6,
+          },
         ],
         publishEvents: [
           {
@@ -372,7 +400,11 @@ describe('portability import', () => {
     });
 
     expect(store.plainwrite_projects).toHaveLength(1);
-    expect(store.plainwrite_projects.at(0)).toMatchObject({ id: 'new-owned-1', createdBy: 'user-2', name: 'Blog' });
+    expect(store.plainwrite_projects.at(0)).toMatchObject({
+      id: 'new-owned-1',
+      createdBy: 'user-2',
+      name: 'Blog',
+    });
     expect(store.plainwrite_project_members).toEqual([
       expect.objectContaining({ projectId: 'new-owned-1', userId: 'user-2', role: 'owner' }),
     ]);
@@ -382,14 +414,17 @@ describe('portability import', () => {
     expect(store.plainwrite_publish_events).toHaveLength(1);
     // Only the owned-project draft survives; the member-only one is skipped.
     expect(store.plainwrite_drafts).toHaveLength(1);
-    expect(store.plainwrite_drafts.at(0)).toMatchObject({ projectId: 'new-owned-1', filePath: 'src/content/a.md' });
+    expect(store.plainwrite_drafts.at(0)).toMatchObject({
+      projectId: 'new-owned-1',
+      filePath: 'src/content/a.md',
+    });
     // Credentials are never restored by import.
     expect(store.plainwrite_credentials).toHaveLength(0);
   });
 });
 
 describe('portability delete', () => {
-  it('deletes the user\'s credentials (revoking each vault secret) and drafts', async () => {
+  it("deletes the user's credentials (revoking each vault secret) and drafts", async () => {
     const { registerPortabilityHandlers } = await import('../portability');
     await registerPortabilityHandlers();
 
